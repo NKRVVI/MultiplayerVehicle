@@ -65,15 +65,6 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	VehicleMovementComponent->WheelSetups[3].WheelClass = UVehicleWheelRear::StaticClass();
 	VehicleMovementComponent->WheelSetups[3].BoneName = WheelBoneRearRight;
 
-	// EngineSetup.TorqueCurve has no keys by default (FVehicleEngineConfig::InitDefaults never adds
-	// any), which evaluates to zero torque everywhere - the engine can rev but drives no wheels.
-	// Give it a basic curve so throttle actually produces forward force.
-	FRichCurve* TorqueCurveData = VehicleMovementComponent->EngineSetup.TorqueCurve.GetRichCurve();
-	TorqueCurveData->AddKey(0.f, 0.6f);
-	TorqueCurveData->AddKey(1500.f, 0.8f);
-	TorqueCurveData->AddKey(3000.f, 1.0f);
-	TorqueCurveData->AddKey(4500.f, 0.7f);
-
 	// --- Chase camera, positioned behind the car ---
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
