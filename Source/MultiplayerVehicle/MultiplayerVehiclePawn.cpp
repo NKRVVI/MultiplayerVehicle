@@ -4,7 +4,7 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "VehicleWheelFront.h"
 #include "VehicleWheelRear.h"
-#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "UObject/ConstructorHelpers.h"
@@ -12,30 +12,34 @@
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/Engine.h"
+#include "Curves/CurveFloat.h"
 
 namespace
 {
-	// Placeholder body mesh - swap CarMesh's Static Mesh for the real car asset once you have one.
-	const TCHAR* PlaceholderMeshPath = TEXT("/Engine/BasicShapes/Cube.Cube");
+	// Placeholder chassis mesh - SportsCar sample mesh bundled with the ChaosModularVehicleExamples
+	// plugin (content-only, enabled in the .uproject). Swap for your own car mesh once you have one.
+	// No AnimInstance is assigned, so it renders in its bind pose - wheels don't visually rotate/steer.
+	const TCHAR* PlaceholderMeshPath = TEXT("/ChaosModularVehicleExamples/Models/SportsCar/SKM_SportsCar.SKM_SportsCar");
 
-	// No wheel meshes/bones: wheels are simulated invisibly at these offsets from the body origin (cm).
-	constexpr float WheelOffsetForwardX = 140.f;
-	constexpr float WheelOffsetSideY = 90.f;
-	constexpr float WheelOffsetDownZ = -50.f;
+	// Bone names on the placeholder mesh's skeleton - used to position the (invisible-motion) physics wheels.
+	const FName WheelBoneFrontLeft(TEXT("Phys_Wheel_FL"));
+	const FName WheelBoneFrontRight(TEXT("Phys_Wheel_FR"));
+	const FName WheelBoneRearLeft(TEXT("Phys_Wheel_BL"));
+	const FName WheelBoneRearRight(TEXT("Phys_Wheel_BR"));
 }
 
 AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	CarMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CarMesh"));
+	CarMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CarMesh"));
 	SetRootComponent(CarMesh);
 
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaceholderMeshFinder(PlaceholderMeshPath);
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> PlaceholderMeshFinder(PlaceholderMeshPath);
 	if (PlaceholderMeshFinder.Succeeded())
 	{
-		CarMesh->SetStaticMesh(PlaceholderMeshFinder.Object);
-		CarMesh->SetRelativeScale3D(FVector(4.5f, 2.0f, 1.0f));
+		CarMesh->SetSkeletalMeshAsset(PlaceholderMeshFinder.Object);
 	}
 
 	CarMesh->SetCollisionProfileName(TEXT("Vehicle"));
@@ -50,16 +54,25 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	VehicleMovementComponent->WheelSetups.SetNum(4);
 
 	VehicleMovementComponent->WheelSetups[0].WheelClass = UVehicleWheelFront::StaticClass();
-	VehicleMovementComponent->WheelSetups[0].AdditionalOffset = FVector(WheelOffsetForwardX, -WheelOffsetSideY, WheelOffsetDownZ);
+	VehicleMovementComponent->WheelSetups[0].BoneName = WheelBoneFrontLeft;
 
 	VehicleMovementComponent->WheelSetups[1].WheelClass = UVehicleWheelFront::StaticClass();
-	VehicleMovementComponent->WheelSetups[1].AdditionalOffset = FVector(WheelOffsetForwardX, WheelOffsetSideY, WheelOffsetDownZ);
+	VehicleMovementComponent->WheelSetups[1].BoneName = WheelBoneFrontRight;
 
 	VehicleMovementComponent->WheelSetups[2].WheelClass = UVehicleWheelRear::StaticClass();
-	VehicleMovementComponent->WheelSetups[2].AdditionalOffset = FVector(-WheelOffsetForwardX, -WheelOffsetSideY, WheelOffsetDownZ);
+	VehicleMovementComponent->WheelSetups[2].BoneName = WheelBoneRearLeft;
 
 	VehicleMovementComponent->WheelSetups[3].WheelClass = UVehicleWheelRear::StaticClass();
-	VehicleMovementComponent->WheelSetups[3].AdditionalOffset = FVector(-WheelOffsetForwardX, WheelOffsetSideY, WheelOffsetDownZ);
+	VehicleMovementComponent->WheelSetups[3].BoneName = WheelBoneRearRight;
+
+	// EngineSetup.TorqueCurve has no keys by default (FVehicleEngineConfig::InitDefaults never adds
+	// any), which evaluates to zero torque everywhere - the engine can rev but drives no wheels.
+	// Give it a basic curve so throttle actually produces forward force.
+	FRichCurve* TorqueCurveData = VehicleMovementComponent->EngineSetup.TorqueCurve.GetRichCurve();
+	TorqueCurveData->AddKey(0.f, 0.6f);
+	TorqueCurveData->AddKey(1500.f, 0.8f);
+	TorqueCurveData->AddKey(3000.f, 1.0f);
+	TorqueCurveData->AddKey(4500.f, 0.7f);
 
 	// --- Chase camera, positioned behind the car ---
 
@@ -85,6 +98,21 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	// assigned in the editor (see the header) - nothing to construct here.
 }
 
+void AMultiplayerVehiclePawn::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	const int32 CurrentGear = VehicleMovementComponent->GetCurrentGear();
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(1, 0.f, FColor::Yellow, FString::Printf(TEXT("Gear: %d"), CurrentGear));
+		GEngine->AddOnScreenDebugMessage(2, 0.f, FColor::Cyan, FString::Printf(TEXT("HasValidPhysicsState: %s"), VehicleMovementComponent->HasValidPhysicsState() ? TEXT("true") : TEXT("false")));
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Current gear: %d"), CurrentGear);
+}
+
 void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
@@ -108,72 +136,47 @@ void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerI
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::Steer);
-		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::Completed, this, &AMultiplayerVehiclePawn::Steer);
 		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::MoveForward);
-		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::Completed, this, &AMultiplayerVehiclePawn::MoveForward);
-		EnhancedInputComponent->BindAction(GearUpAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearUp);
-		EnhancedInputComponent->BindAction(GearDownAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearDown);
+
+		// Manual gear shifting disabled for now - automatic transmission handles gears.
+		// EnhancedInputComponent->BindAction(GearUpAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearUp);
+		// EnhancedInputComponent->BindAction(GearDownAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearDown);
 	}
 }
 
 void AMultiplayerVehiclePawn::Steer(const FInputActionValue& Value)
 {
-	if (VehicleMovementComponent)
-	{
-		VehicleMovementComponent->SetSteeringInput(Value.Get<float>());
-	}
+	VehicleMovementComponent->SetSteeringInput(Value.Get<float>());
 }
 
 void AMultiplayerVehiclePawn::MoveForward(const FInputActionValue& Value)
 {
-	if (!VehicleMovementComponent)
-	{
-		return;
-	}
-
+	// Gear functionality disabled for now - no manual gear/reverse forcing here,
+	// just throttle forward / brake back. Relies on the movement component's own
+	// automatic transmission + auto-reverse for anything gear-related.
 	const float AxisValue = Value.Get<float>();
 
 	if (AxisValue >= 0.f)
 	{
-		if (VehicleMovementComponent->GetCurrentGear() < 0)
-		{
-			// Coming out of reverse - hand gear selection back to the automatic gearbox.
-			VehicleMovementComponent->SetUseAutomaticGears(true);
-		}
-
+		GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, TEXT("Moving"));
 		VehicleMovementComponent->SetThrottleInput(AxisValue);
 		VehicleMovementComponent->SetBrakeInput(0.f);
 	}
-	else if (VehicleMovementComponent->GetForwardSpeed() > ReverseSpeedThreshold)
-	{
-		// Still moving forward - brake rather than instantly reversing.
-		VehicleMovementComponent->SetThrottleInput(0.f);
-		VehicleMovementComponent->SetBrakeInput(-AxisValue);
-	}
 	else
 	{
-		// Stopped (or already reversing) - engage reverse gear.
-		VehicleMovementComponent->SetUseAutomaticGears(false);
-		VehicleMovementComponent->SetTargetGear(-1, true);
-		VehicleMovementComponent->SetThrottleInput(-AxisValue);
-		VehicleMovementComponent->SetBrakeInput(0.f);
+		VehicleMovementComponent->SetThrottleInput(0.f);
+		VehicleMovementComponent->SetBrakeInput(-AxisValue);
 	}
 }
 
 void AMultiplayerVehiclePawn::GearUp(const FInputActionValue& Value)
 {
-	if (VehicleMovementComponent)
-	{
-		VehicleMovementComponent->SetUseAutomaticGears(false);
-		VehicleMovementComponent->SetTargetGear(VehicleMovementComponent->GetCurrentGear() + 1, false);
-	}
+	VehicleMovementComponent->SetUseAutomaticGears(false);
+	VehicleMovementComponent->SetTargetGear(VehicleMovementComponent->GetCurrentGear() + 1, false);
 }
 
 void AMultiplayerVehiclePawn::GearDown(const FInputActionValue& Value)
 {
-	if (VehicleMovementComponent)
-	{
-		VehicleMovementComponent->SetUseAutomaticGears(false);
-		VehicleMovementComponent->SetTargetGear(VehicleMovementComponent->GetCurrentGear() - 1, false);
-	}
+	VehicleMovementComponent->SetUseAutomaticGears(false);
+	VehicleMovementComponent->SetTargetGear(VehicleMovementComponent->GetCurrentGear() - 1, false);
 }

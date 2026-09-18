@@ -7,7 +7,7 @@
 #include "InputActionValue.h"
 #include "MultiplayerVehiclePawn.generated.h"
 
-class UStaticMeshComponent;
+class USkeletalMeshComponent;
 class UChaosWheeledVehicleMovementComponent;
 class UInputMappingContext;
 class UInputAction;
@@ -15,9 +15,12 @@ class USpringArmComponent;
 class UCameraComponent;
 
 /**
- * Drivable car pawn. The car body is a single static mesh (no separate wheel
- * meshes/bones) driven by a Chaos wheeled vehicle movement component, which
- * simulates the wheels invisibly at fixed offsets from the body.
+ * Drivable car pawn. The car body is a skeletal mesh (a Skeletal Mesh
+ * Component is required for UChaosVehicleMovementComponent to simulate at
+ * all - a static mesh chassis silently never creates a physics state)
+ * driven by a Chaos wheeled vehicle movement component. No AnimInstance is
+ * assigned, so the mesh renders in its bind pose and the wheels don't
+ * visually rotate/steer even though the physics wheels are real.
  *
  * Steering / throttle / brake / reverse / gear-shift input is bound via
  * Enhanced Input. VehicleMappingContext and the IA_* actions below are
@@ -33,6 +36,8 @@ class MULTIPLAYERVEHICLE_API AMultiplayerVehiclePawn : public APawn
 public:
 	AMultiplayerVehiclePawn();
 
+	virtual void Tick(float DeltaTime) override;
+
 protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
@@ -43,7 +48,7 @@ protected:
 
 	/** The car body. Root component and sole visual/physical mesh - assign your car mesh here. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UStaticMeshComponent> CarMesh;
+	TObjectPtr<USkeletalMeshComponent> CarMesh;
 
 	/** Drives CarMesh: steering, throttle, brake, gears. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle", meta = (AllowPrivateAccess = "true"))
@@ -78,7 +83,7 @@ protected:
 	float ReverseSpeedThreshold = 15.f;
 
 public:
-	FORCEINLINE UStaticMeshComponent* GetCarMesh() const { return CarMesh; }
+	FORCEINLINE USkeletalMeshComponent* GetCarMesh() const { return CarMesh; }
 	FORCEINLINE UChaosWheeledVehicleMovementComponent* GetVehicleMovementComponent() const { return VehicleMovementComponent; }
 	FORCEINLINE USpringArmComponent* GetSpringArm() const { return SpringArm; }
 	FORCEINLINE UCameraComponent* GetCamera() const { return Camera; }
