@@ -43,6 +43,7 @@ protected:
 
 	void Steer(const FInputActionValue& Value);
 	void MoveForward(const FInputActionValue& Value);
+	void Stop(const FInputActionValue& Value);
 	void GearUp(const FInputActionValue& Value);
 	void GearDown(const FInputActionValue& Value);
 

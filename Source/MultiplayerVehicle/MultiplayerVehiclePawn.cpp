@@ -127,7 +127,10 @@ void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerI
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::Steer);
+		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::Completed, this, &AMultiplayerVehiclePawn::Steer);
+
 		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::MoveForward);
+		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::Completed, this, &AMultiplayerVehiclePawn::Stop);
 
 		// Manual gear shifting disabled for now - automatic transmission handles gears.
 		// EnhancedInputComponent->BindAction(GearUpAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearUp);
@@ -147,16 +150,38 @@ void AMultiplayerVehiclePawn::MoveForward(const FInputActionValue& Value)
 	// automatic transmission + auto-reverse for anything gear-related.
 	const float AxisValue = Value.Get<float>();
 
-	if (AxisValue >= 0.f)
+	if (AxisValue > 0.f)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, TEXT("Moving"));
 		VehicleMovementComponent->SetThrottleInput(AxisValue);
+		VehicleMovementComponent->SetBrakeInput(0.f);
+	}
+	else if (AxisValue < 0.f)
+	{
+		VehicleMovementComponent->SetThrottleInput(0.f);
+		VehicleMovementComponent->SetBrakeInput(-AxisValue);
+	}
+}
+
+void AMultiplayerVehiclePawn::Stop(const FInputActionValue& Value)
+{
+	constexpr float ReleasedBrakeAmount = 0.2f;
+	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, TEXT("Brake"));
+	if (VehicleMovementComponent->GetCurrentGear() < 0)
+	{
+		// Keys released while in reverse gear - the automatic gearbox's auto-reverse
+		// reads Brake input as the reverse throttle while stopped/reversing, so applying
+		// our usual release brake here would just keep the car creeping backward instead
+		// of stopping it. Apply a light forward throttle instead - while rolling backward
+		// this acts as the counter-force (brake) against the reverse motion.
+		VehicleMovementComponent->SetThrottleInput(ReleasedBrakeAmount);
 		VehicleMovementComponent->SetBrakeInput(0.f);
 	}
 	else
 	{
+		// Keys released - light auto-brake so the car visibly slows down
+		// instead of just coasting on engine braking/rolling resistance.
 		VehicleMovementComponent->SetThrottleInput(0.f);
-		VehicleMovementComponent->SetBrakeInput(-AxisValue);
+		VehicleMovementComponent->SetBrakeInput(ReleasedBrakeAmount);
 	}
 }
 
