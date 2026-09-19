@@ -9,6 +9,8 @@
 #include "Camera/CameraComponent.h"
 #include "Components/WidgetComponent.h"
 #include "CarHealthOverheadWidget.h"
+#include "CarHealthHUDWidget.h"
+#include "CarHUD.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -147,7 +149,20 @@ void AMultiplayerVehiclePawn::OnRep_Controller()
 
 void AMultiplayerVehiclePawn::UpdateOverheadWidgetVisibility()
 {
-	if (!IsLocallyControlled())
+	if (IsLocallyControlled())
+	{
+		if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+		{
+			if (const ACarHUD* CarHUD = PlayerController->GetHUD<ACarHUD>())
+			{
+				if (UCarHealthHUDWidget* HUDWidget = CarHUD->GetHealthWidget())
+				{
+					HUDWidget->UpdateCarHealth(Health / MaxHealth);
+				}
+			}
+		}
+	}
+	else
 	{
 		OverheadWidget->SetVisibility(true);
 		UCarHealthOverheadWidget* HealthWidget = Cast<UCarHealthOverheadWidget>(OverheadWidget->GetUserWidgetObject());
@@ -164,11 +179,22 @@ void AMultiplayerVehiclePawn::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 
 void AMultiplayerVehiclePawn::RepNotify_UpdateHealth()
 {
-	// Every client runs this for every pawn it can see: the pawn this machine controls gets an on-screen
-	// message, every other pawn pushes its health to the overhead widget.
+	// Every client runs this for every pawn it can see: the pawn this machine controls updates the HUD
+	// widget, every other pawn pushes its health to the overhead widget.
 	if (IsLocallyControlled())
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString::Printf(TEXT("Health: %.0f"), Health));
+
+		if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+		{
+			if (const ACarHUD* CarHUD = PlayerController->GetHUD<ACarHUD>())
+			{
+				if (UCarHealthHUDWidget* HUDWidget = CarHUD->GetHealthWidget())
+				{
+					HUDWidget->UpdateCarHealth(Health / MaxHealth);
+				}
+			}
+		}
 	}
 	else if (UCarHealthOverheadWidget* HealthWidget = Cast<UCarHealthOverheadWidget>(OverheadWidget->GetUserWidgetObject()))
 	{
