@@ -43,7 +43,8 @@ protected:
 
 	void Steer(const FInputActionValue& Value);
 	void MoveForward(const FInputActionValue& Value);
-	void Stop(const FInputActionValue& Value);
+	void CoastBrake(const FInputActionValue& Value);
+	void Brake(const FInputActionValue& Value);
 	void GearUp(const FInputActionValue& Value);
 	void GearDown(const FInputActionValue& Value);
 
@@ -73,19 +74,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> MoveForwardAction;
 
+	/** Applies the brake directly, regardless of whether the car is currently moving forward or backward. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> BrakeAction;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> GearUpAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> GearDownAction;
-
-	/** Below this forward speed (cm/s), holding the brake/reverse input shifts into reverse instead of just braking. */
-	UPROPERTY(EditAnywhere, Category = "Vehicle")
-	float ReverseSpeedThreshold = 15.f;
-
-	/** Brake input strength (0-1) applied automatically once the move-forward input is released, so the car coasts to a stop instead of just rolling freely. Higher values slow the car down faster. */
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle")
-	float CoastBrakeStrength = 0.2f;
+	float HarshBrakeStrength = 0.2f;
 
 public:
 	FORCEINLINE USkeletalMeshComponent* GetCarMesh() const { return CarMesh; }
