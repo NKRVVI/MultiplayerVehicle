@@ -215,11 +215,11 @@ void AMultiplayerVehiclePawn::DecrementHealth(float Amount)
 
 void AMultiplayerVehiclePawn::OnCarHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	MulticastDrawImpact(Hit.ImpactPoint);
 
 	// Only car-vs-car hits do damage. This event describes the damage *this* car deals; the other car's own
 	// hit event covers the reverse direction, so each car is only ever damaged as the recipient.
 	AMultiplayerVehiclePawn* Recipient = Cast<AMultiplayerVehiclePawn>(OtherActor);
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Emerald, OtherActor->GetName());
 	if (!Recipient)
 	{
 		return;
@@ -234,14 +234,17 @@ void AMultiplayerVehiclePawn::OnCarHit(UPrimitiveComponent* HitComp, AActor* Oth
 
 	// How directly this car is heading at the hit point: 1 = straight at it, 0 = sideways, <0 = moving away.
 	const FVector ToHitPoint = (Hit.ImpactPoint - CarMesh->GetCenterOfMass()).GetSafeNormal();
-	const float Alignment = FVector::DotProduct(Velocity / Speed, ToHitPoint);
+	const float Alignment = FMath::Abs(FVector::DotProduct(Velocity / Speed, ToHitPoint));
 	if (Alignment <= 0.f)
 	{
 		return;
 	}
 
+	GEngine->AddOnScreenDebugMessage(-1, 20.f, FColor::Purple, FString::Printf(TEXT("Hit: %s / bone %s  |  Mine: %s / bone %s"),
+		*GetNameSafe(OtherComp), *Hit.BoneName.ToString(), *GetNameSafe(HitComp), *Hit.MyBoneName.ToString()));
 	const float NormalisedSpeed = FMath::Clamp(Speed / MaxDamageSpeed, 0.f, 1.f);
 	Recipient->DecrementHealth(Alignment * MaxCollisionDamage * NormalisedSpeed);
+	MulticastDrawImpact(Hit.ImpactPoint);
 }
 
 void AMultiplayerVehiclePawn::MulticastDrawImpact_Implementation(FVector_NetQuantize ImpactPoint)
