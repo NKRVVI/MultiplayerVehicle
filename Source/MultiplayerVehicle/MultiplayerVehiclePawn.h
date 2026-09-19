@@ -38,6 +38,7 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
@@ -95,6 +96,25 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle")
 	float HarshBrakeStrength = 0.2f;
+
+	/** Vehicle health. Set on the server only; clients get it via replication and RepNotify_UpdateHealth runs when it arrives. */
+	UPROPERTY(ReplicatedUsing = RepNotify_UpdateHealth, EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Health")
+	float Health = 100.f;
+
+	/** RepNotify for Health. Only fires on clients - on the server, call it manually after changing Health. */
+	UFUNCTION()
+	void RepNotify_UpdateHealth();
+
+	/** Damage dealt to another car by a perfectly head-on hit at MaxDamageSpeed or above. Scaled down by angle and speed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle|Health")
+	float MaxCollisionDamage = 50.f;
+
+	/** Speed (cm/s) at which a hit does full damage; speed is normalised against this and clamped to 0-1. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle|Health")
+	float MaxDamageSpeed = 2000.f;
+
+	/** Server-only: lowers Health by Amount (clamped at 0) and runs the RepNotify locally, since it doesn't fire on the server. */
+	void DecrementHealth(float Amount);
 
 public:
 	FORCEINLINE USkeletalMeshComponent* GetCarMesh() const { return CarMesh; }

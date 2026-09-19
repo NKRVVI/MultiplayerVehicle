@@ -15,6 +15,7 @@
 #include "Engine/Engine.h"
 #include "Curves/CurveFloat.h"
 #include "DrawDebugHelpers.h"
+#include "Net/UnrealNetwork.h"
 
 namespace
 {
@@ -95,7 +96,10 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 void AMultiplayerVehiclePawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, FString::FromInt(VehicleMovementComponent->GetCurrentGear()));
+	if (IsLocallyControlled())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Black, TEXT("Current Health is ") + FString::FromInt(Health));
+	}
 }
 
 void AMultiplayerVehiclePawn::BeginPlay()
@@ -115,9 +119,62 @@ void AMultiplayerVehiclePawn::BeginPlay()
 	VehicleMovementComponent->SetTargetGear(0.f, true);
 }
 
+void AMultiplayerVehiclePawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AMultiplayerVehiclePawn, Health);
+}
+
+void AMultiplayerVehiclePawn::RepNotify_UpdateHealth()
+{
+	// Every client runs this for every pawn it can see, so only show health for the pawn this machine controls.
+	if (IsLocallyControlled())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString::Printf(TEXT("Health: %.0f"), Health));
+	}
+}
+
+void AMultiplayerVehiclePawn::DecrementHealth(float Amount)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	Health = FMath::Max(0.f, Health - Amount);
+	RepNotify_UpdateHealth();
+}
+
 void AMultiplayerVehiclePawn::OnCarHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	MulticastDrawImpact(Hit.ImpactPoint);
+
+	// Only car-vs-car hits do damage. This event describes the damage *this* car deals; the other car's own
+	// hit event covers the reverse direction, so each car is only ever damaged as the recipient.
+	AMultiplayerVehiclePawn* Recipient = Cast<AMultiplayerVehiclePawn>(OtherActor);
+	if (!Recipient)
+	{
+		return;
+	}
+
+	const FVector Velocity = CarMesh->GetPhysicsLinearVelocity();
+	const float Speed = Velocity.Size();
+	if (Speed < KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	// How directly this car is heading at the hit point: 1 = straight at it, 0 = sideways, <0 = moving away.
+	const FVector ToHitPoint = (Hit.ImpactPoint - CarMesh->GetCenterOfMass()).GetSafeNormal();
+	const float Alignment = FVector::DotProduct(Velocity / Speed, ToHitPoint);
+	if (Alignment <= 0.f)
+	{
+		return;
+	}
+
+	const float NormalisedSpeed = FMath::Clamp(Speed / MaxDamageSpeed, 0.f, 1.f);
+	Recipient->DecrementHealth(Alignment * MaxCollisionDamage * NormalisedSpeed);
 }
 
 void AMultiplayerVehiclePawn::MulticastDrawImpact_Implementation(FVector_NetQuantize ImpactPoint)
