@@ -92,16 +92,15 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 void AMultiplayerVehiclePawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, FString::FromInt(VehicleMovementComponent->GetCurrentGear()));
+}
 
-	const int32 CurrentGear = VehicleMovementComponent->GetCurrentGear();
-
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(1, 0.f, FColor::Yellow, FString::Printf(TEXT("Gear: %d"), CurrentGear));
-		GEngine->AddOnScreenDebugMessage(2, 0.f, FColor::Cyan, FString::Printf(TEXT("HasValidPhysicsState: %s"), VehicleMovementComponent->HasValidPhysicsState() ? TEXT("true") : TEXT("false")));
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("Current gear: %d"), CurrentGear);
+void AMultiplayerVehiclePawn::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	VehicleMovementComponent->SetUseAutomaticGears(false);
+	VehicleMovementComponent->SetTargetGear(0.f, true);
 }
 
 void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -135,8 +134,8 @@ void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerI
 		EnhancedInputComponent->BindAction(BrakeAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::Brake);
 
 		// Manual gear shifting disabled for now - automatic transmission handles gears.
-		// EnhancedInputComponent->BindAction(GearUpAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearUp);
-		// EnhancedInputComponent->BindAction(GearDownAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearDown);
+		EnhancedInputComponent->BindAction(GearUpAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearUp);
+		EnhancedInputComponent->BindAction(GearDownAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearDown);
 	}
 }
 
@@ -152,16 +151,8 @@ void AMultiplayerVehiclePawn::MoveForward(const FInputActionValue& Value)
 	// automatic transmission + auto-reverse for anything gear-related.
 	const float AxisValue = Value.Get<float>();
 
-	if (AxisValue > 0.f)
-	{
-		VehicleMovementComponent->SetThrottleInput(AxisValue);
-		VehicleMovementComponent->SetBrakeInput(0.f);
-	}
-	else if (AxisValue < 0.f)
-	{
-		VehicleMovementComponent->SetThrottleInput(0.f);
-		VehicleMovementComponent->SetBrakeInput(-AxisValue);
-	}
+	VehicleMovementComponent->SetThrottleInput(AxisValue);
+	VehicleMovementComponent->SetBrakeInput(0.f);
 }
 
 void AMultiplayerVehiclePawn::CoastBrake(const FInputActionValue& Value)
@@ -173,33 +164,19 @@ void AMultiplayerVehiclePawn::CoastBrake(const FInputActionValue& Value)
 void AMultiplayerVehiclePawn::Brake(const FInputActionValue& Value)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Cyan, TEXT("Brake"));
-	if (VehicleMovementComponent->GetCurrentGear() < 0)
-	{
-		// Keys released while in reverse gear - the automatic gearbox's auto-reverse
-		// reads Brake input as the reverse throttle while stopped/reversing, so applying
-		// our usual release brake here would just keep the car creeping backward instead
-		// of stopping it. Apply a light forward throttle instead - while rolling backward
-		// this acts as the counter-force (brake) against the reverse motion.
-		VehicleMovementComponent->SetThrottleInput(HarshBrakeStrength);
-		VehicleMovementComponent->SetBrakeInput(0.f);
-	}
-	else
-	{
-		// Keys released - light auto-brake so the car visibly slows down
-		// instead of just coasting on engine braking/rolling resistance.
-		VehicleMovementComponent->SetThrottleInput(0.f);
-		VehicleMovementComponent->SetBrakeInput(HarshBrakeStrength);
-	}
+	VehicleMovementComponent->SetBrakeInput(HarshBrakeStrength);
 }
 
 void AMultiplayerVehiclePawn::GearUp(const FInputActionValue& Value)
 {
-	VehicleMovementComponent->SetUseAutomaticGears(false);
-	VehicleMovementComponent->SetTargetGear(VehicleMovementComponent->GetCurrentGear() + 1, false);
+	VehicleMovementComponent->SetTargetGear(VehicleMovementComponent->GetCurrentGear() + 1, true);
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Yellow, FString::Printf(TEXT("CurrentGear: %d"), VehicleMovementComponent->GetCurrentGear()));
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, FString::Printf(TEXT("TargetGear: %d"), VehicleMovementComponent->GetTargetGear()));
 }
 
 void AMultiplayerVehiclePawn::GearDown(const FInputActionValue& Value)
 {
-	VehicleMovementComponent->SetUseAutomaticGears(false);
-	VehicleMovementComponent->SetTargetGear(VehicleMovementComponent->GetCurrentGear() - 1, false);
+	VehicleMovementComponent->SetTargetGear(VehicleMovementComponent->GetCurrentGear() - 1, true);
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Yellow, FString::Printf(TEXT("CurrentGear: %d"), VehicleMovementComponent->GetCurrentGear()));
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, FString::Printf(TEXT("TargetGear: %d"), VehicleMovementComponent->GetTargetGear()));
 }

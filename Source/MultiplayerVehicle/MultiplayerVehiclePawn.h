@@ -37,6 +37,7 @@ public:
 	AMultiplayerVehiclePawn();
 
 	virtual void Tick(float DeltaTime) override;
+	virtual void BeginPlay() override;
 
 protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
