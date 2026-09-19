@@ -138,6 +138,10 @@ void AMultiplayerVehiclePawn::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 
 	UpdateOverheadWidgetVisibility();
+	if (IsLocallyControlled())
+	{
+		OverheadWidget->SetVisibility(false);
+	}
 }
 
 void AMultiplayerVehiclePawn::UnPossessed()
@@ -154,6 +158,11 @@ void AMultiplayerVehiclePawn::OnRep_Controller()
 
 	// On the owning client the controller usually arrives after BeginPlay, so IsLocallyControlled() was still false then.
 	UpdateOverheadWidgetVisibility();
+	
+	if (IsLocallyControlled())
+	{
+		OverheadWidget->SetVisibility(false);
+	}
 }
 
 void AMultiplayerVehiclePawn::OnRep_PlayerState()
@@ -163,6 +172,11 @@ void AMultiplayerVehiclePawn::OnRep_PlayerState()
 	// On clients the pawn's PlayerState arrives after BeginPlay (and other clients never get this car's controller),
 	// so the name has to be pushed to the overhead widget when it shows up.
 	UpdateOverheadWidgetVisibility();
+	
+	if (IsLocallyControlled())
+	{
+		OverheadWidget->SetVisibility(false);
+	}
 }
 
 void AMultiplayerVehiclePawn::UpdateOverheadWidgetVisibility()
