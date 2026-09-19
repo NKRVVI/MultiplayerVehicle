@@ -240,6 +240,15 @@ void AMultiplayerVehiclePawn::OnCarHit(UPrimitiveComponent* HitComp, AActor* Oth
 		return;
 	}
 
+	// Contact events fire every physics frame while cars scrape or bounce, so only the first hit in the
+	// cooldown window damages the recipient.
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (Now - Recipient->LastCollisionDamageTime < Recipient->CollisionDamageCooldown)
+	{
+		return;
+	}
+	Recipient->LastCollisionDamageTime = Now;
+
 	GEngine->AddOnScreenDebugMessage(-1, 20.f, FColor::Purple, FString::Printf(TEXT("Hit: %s / bone %s  |  Mine: %s / bone %s"),
 		*GetNameSafe(OtherComp), *Hit.BoneName.ToString(), *GetNameSafe(HitComp), *Hit.MyBoneName.ToString()));
 	const float NormalisedSpeed = FMath::Clamp(Speed / MaxDamageSpeed, 0.f, 1.f);

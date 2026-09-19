@@ -127,6 +127,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle|Health")
 	float MaxDamageSpeed = 2000.f;
 
+	/** Seconds after this car takes collision damage during which further collision damage to it is ignored, so one crash (many contact events) only hurts once. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle|Health", meta = (ClampMin = "0.0"))
+	float CollisionDamageCooldown = 0.75f;
+
+	/** Server-only: world time (seconds) of the last collision damage this car took. */
+	float LastCollisionDamageTime = -BIG_NUMBER;
+
 	/** Server-only: lowers Health by Amount (clamped at 0) and runs the RepNotify locally, since it doesn't fire on the server. */
 	void DecrementHealth(float Amount);
 
