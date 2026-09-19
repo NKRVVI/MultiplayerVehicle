@@ -9,7 +9,6 @@
 
 class USkeletalMeshComponent;
 class UChaosWheeledVehicleMovementComponent;
-class UInputMappingContext;
 class UInputAction;
 class USpringArmComponent;
 class UCameraComponent;
@@ -24,10 +23,10 @@ class UWidgetComponent;
  * visually rotate/steer even though the physics wheels are real.
  *
  * Steering / throttle / brake / reverse / gear-shift input is bound via
- * Enhanced Input. VehicleMappingContext and the IA_* actions below are
- * assigned in the editor (e.g. on a Blueprint subclass) - create the Input
- * Mapping Context and Input Action assets there, with the key mappings set
- * on the mapping context asset; this class only binds actions to functions.
+ * Enhanced Input. The IA_* actions below are assigned in the editor (e.g. on
+ * a Blueprint subclass). The Input Mapping Context that maps keys to them is
+ * added by ACarPlayerController (VehicleMappingContext); this class only
+ * binds actions to functions.
  */
 UCLASS()
 class MULTIPLAYERVEHICLE_API AMultiplayerVehiclePawn : public APawn
@@ -84,10 +83,7 @@ protected:
 	/** Shows OverheadWidget unless this pawn is locally controlled. Re-run whenever the controller may have changed. */
 	void UpdateOverheadWidgetVisibility();
 
-	/** Input Mapping Context asset - assign in the editor. Holds the key-to-action mappings for the actions below. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputMappingContext> VehicleMappingContext;
-
+	// The Input Mapping Context holding these actions' key mappings is added by ACarPlayerController.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> SteerAction;
 

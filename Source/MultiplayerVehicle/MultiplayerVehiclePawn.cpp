@@ -100,7 +100,7 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	OverheadWidget->SetupAttachment(CarMesh);
 	OverheadWidget->SetVisibility(false);
 
-	// VehicleMappingContext, SteerAction, MoveForwardAction, GearUpAction and GearDownAction are
+	// SteerAction, MoveForwardAction, BrakeAction, GearUpAction and GearDownAction are
 	// assigned in the editor (see the header) - nothing to construct here.
 }
 
@@ -265,22 +265,8 @@ void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerI
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	// Activate the mapping context (key-to-action mapping lives on the asset itself, assigned in the editor).
-	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
-	{
-		if (ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
-		{
-			if (UEnhancedInputLocalPlayerSubsystem* Subsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-			{
-				if (VehicleMappingContext)
-				{
-					Subsystem->AddMappingContext(VehicleMappingContext, 0);
-				}
-			}
-		}
-	}
-
-	// Bind each action to its handler function.
+	// The key-to-action mapping context is added by the player controller (ACarPlayerController);
+	// this pawn only binds the actions to its handler functions.
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::Steer);
