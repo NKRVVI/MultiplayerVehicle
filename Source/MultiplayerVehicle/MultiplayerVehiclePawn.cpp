@@ -14,6 +14,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/Engine.h"
 #include "Curves/CurveFloat.h"
+#include "DrawDebugHelpers.h"
 
 namespace
 {
@@ -32,6 +33,7 @@ namespace
 AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	bReplicates = true; // required for the NetMulticast impact RPC
 
 	CarMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CarMesh"));
 	SetRootComponent(CarMesh);
@@ -45,6 +47,7 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	CarMesh->SetCollisionProfileName(TEXT("Vehicle"));
 	CarMesh->SetSimulatePhysics(true);
 	CarMesh->SetGenerateOverlapEvents(true);
+	CarMesh->SetNotifyRigidBodyCollision(true); // "Simulation Generates Hit Events" - required for OnComponentHit
 	CarMesh->BodyInstance.bOverrideMass = true;
 	CarMesh->BodyInstance.SetMassOverride(1500.f);
 
@@ -98,9 +101,28 @@ void AMultiplayerVehiclePawn::Tick(float DeltaTime)
 void AMultiplayerVehiclePawn::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	// Collisions are only detected on the server; clients are told about them via MulticastDrawImpact.
+	if (HasAuthority())
+	{
+		// A skeletal mesh's hit-event flag lives on each physics-asset body, not on the component's BodyInstance,
+		// and those bodies only exist once physics state is created - so this can't be done in the constructor.
+		CarMesh->SetAllBodiesNotifyRigidBodyCollision(true);
+		CarMesh->OnComponentHit.AddDynamic(this, &AMultiplayerVehiclePawn::OnCarHit);
+	}
+
 	VehicleMovementComponent->SetUseAutomaticGears(false);
 	VehicleMovementComponent->SetTargetGear(0.f, true);
+}
+
+void AMultiplayerVehiclePawn::OnCarHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	MulticastDrawImpact(Hit.ImpactPoint);
+}
+
+void AMultiplayerVehiclePawn::MulticastDrawImpact_Implementation(FVector_NetQuantize ImpactPoint)
+{
+	DrawDebugSphere(GetWorld(), ImpactPoint, 25.f, 12, FColor::Red, false, 2.f);
 }
 
 void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

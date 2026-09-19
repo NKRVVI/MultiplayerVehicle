@@ -49,6 +49,14 @@ protected:
 	void GearUp(const FInputActionValue& Value);
 	void GearDown(const FInputActionValue& Value);
 
+	/** Runs on all machines (called from the server); draws a debug sphere at the impact point. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastDrawImpact(FVector_NetQuantize ImpactPoint);
+
+	/** Server-only: bound to CarMesh's hit event on authority, then tells everyone to draw the impact. */
+	UFUNCTION()
+	void OnCarHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
 	/** The car body. Root component and sole visual/physical mesh - assign your car mesh here. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USkeletalMeshComponent> CarMesh;
