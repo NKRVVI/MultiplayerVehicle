@@ -136,6 +136,7 @@ void AMultiplayerVehiclePawn::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 
 	UpdateHealthWidget();
+	OnGearChange.Broadcast(GetTargetGear());
 }
 
 void AMultiplayerVehiclePawn::UnPossessed()
@@ -152,7 +153,10 @@ void AMultiplayerVehiclePawn::OnRep_Controller()
 	
 	// Driver left: this car is no longer locally controlled, so it goes back to the overhead widget.
 	UpdateHealthWidget();
-	
+	if (GetController())
+	{
+		OnGearChange.Broadcast(GetTargetGear());
+	}
 }
 
 void AMultiplayerVehiclePawn::OnRep_PlayerState()
@@ -346,6 +350,7 @@ void AMultiplayerVehiclePawn::GearUp(const FInputActionValue& Value)
 	VehicleMovementComponent->SetTargetGear(VehicleMovementComponent->GetCurrentGear() + 1, true);
 	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Yellow, FString::Printf(TEXT("CurrentGear: %d"), VehicleMovementComponent->GetCurrentGear()));
 	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, FString::Printf(TEXT("TargetGear: %d"), VehicleMovementComponent->GetTargetGear()));
+	OnGearChange.Broadcast(GetTargetGear());
 }
 
 void AMultiplayerVehiclePawn::GearDown(const FInputActionValue& Value)
@@ -353,4 +358,10 @@ void AMultiplayerVehiclePawn::GearDown(const FInputActionValue& Value)
 	VehicleMovementComponent->SetTargetGear(VehicleMovementComponent->GetCurrentGear() - 1, true);
 	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Yellow, FString::Printf(TEXT("CurrentGear: %d"), VehicleMovementComponent->GetCurrentGear()));
 	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, FString::Printf(TEXT("TargetGear: %d"), VehicleMovementComponent->GetTargetGear()));
+	OnGearChange.Broadcast(GetTargetGear());
+}
+
+int32 AMultiplayerVehiclePawn::GetTargetGear() const
+{
+	return VehicleMovementComponent->GetTargetGear();
 }

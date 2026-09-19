@@ -31,6 +31,22 @@ void ACarPlayerController::SetHealthHUDVisbility(bool bVisible)
 	}
 }
 
+void ACarPlayerController::RefreshHUD()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	SetHealthHUDVisbility(!Cast<ADefaultPawn>(GetPawn()));
+
+	if (const AMultiplayerVehiclePawn* Vehicle = BoundVehicle.Get())
+	{
+		HandleHealthUpdate(Vehicle->GetHealthPercent());
+		UpdateGear(Vehicle->GetTargetGear());
+	}
+}
+
 void ACarPlayerController::HandleHealthUpdate(float HealthPercent)
 {
 	if (const ACarHUD* CarHUD = GetHUD<ACarHUD>())
@@ -38,6 +54,17 @@ void ACarPlayerController::HandleHealthUpdate(float HealthPercent)
 		if (UCarHealthHUDWidget* HUDWidget = CarHUD->GetHealthWidget())
 		{
 			HUDWidget->UpdateCarHealth(HealthPercent);
+		}
+	}
+}
+
+void ACarPlayerController::UpdateGear(int32 Gear)
+{
+	if (const ACarHUD* CarHUD = GetHUD<ACarHUD>())
+	{
+		if (UCarHealthHUDWidget* HUDWidget = CarHUD->GetHealthWidget())
+		{
+			HUDWidget->UpdateGear(Gear);
 		}
 	}
 }
@@ -52,6 +79,7 @@ void ACarPlayerController::BindHealthHUD(APawn* NewPawn)
 	if (AMultiplayerVehiclePawn* OldVehicle = BoundVehicle.Get())
 	{
 		OldVehicle->OnHealthUpdate.RemoveAll(this);
+		OldVehicle->OnGearChange.RemoveAll(this);
 	}
 
 	BoundVehicle = Cast<AMultiplayerVehiclePawn>(NewPawn);
@@ -61,6 +89,10 @@ void ACarPlayerController::BindHealthHUD(APawn* NewPawn)
 
 		// Getting into a car doesn't change its health, so nothing would broadcast until the next hit.
 		HandleHealthUpdate(Vehicle->GetHealthPercent());
+
+		// Same for the gear: the vehicle's own broadcasts on possession can land before we are bound (always so on a listen-server host).
+		Vehicle->OnGearChange.AddUObject(this, &ACarPlayerController::UpdateGear);
+		UpdateGear(Vehicle->GetTargetGear());
 	}
 }
 
@@ -85,8 +117,8 @@ void ACarPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	// Server-side counterpart of OnRep_Pawn: only does anything for a listen-server host's own controller.
 	BindHealthHUD(InPawn);
+	// Server-side counterpart of OnRep_Pawn: only does anything for a listen-server host's own controller.
 
 	if (AMultiplayerVehiclePawn* Vehicle = Cast<AMultiplayerVehiclePawn>(InPawn))
 	{

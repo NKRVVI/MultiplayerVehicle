@@ -20,6 +20,9 @@ DECLARE_MULTICAST_DELEGATE(FOnVehicleDead);
 /** Broadcast on the machine controlling a vehicle whenever its health changes. Parameter is health as 0-1 of MaxHealth. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHealthUpdate, float);
 
+/** Broadcast on the machine controlling a vehicle whenever its gear may have changed. Parameter is the vehicle's target gear. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnGearChange, int32);
+
 /**
  * Drivable car pawn. The car body is a skeletal mesh (a Skeletal Mesh
  * Component is required for UChaosVehicleMovementComponent to simulate at
@@ -160,6 +163,12 @@ public:
 
 	/** Broadcast from UpdateHealthWidget when this pawn is locally controlled. The local player controller binds to this to drive the HUD widget. */
 	FOnHealthUpdate OnHealthUpdate;
+
+	/** Broadcast on gear up/down and when the controller changes. The local player controller binds to this to drive the HUD's gear display. */
+	FOnGearChange OnGearChange;
+
+	/** The gear the vehicle is shifting to. Ahead of GetCurrentGear() right after a shift request. */
+	int32 GetTargetGear() const;
 
 	FORCEINLINE float GetHealthPercent() const { return Health / MaxHealth; }
 	FORCEINLINE bool IsDead() const { return bDead; }

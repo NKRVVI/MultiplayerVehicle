@@ -24,6 +24,9 @@ public:
 	ACarPlayerController();
 	void SetHealthHUDVisbility(bool bVisible);
 
+	/** Local-only: pushes the current pawn's state (visibility, health, gear) to the HUD widget. Call once the widget exists. */
+	void RefreshHUD();
+
 	virtual void OnRep_Pawn() override;
 
 protected:
@@ -39,7 +42,10 @@ protected:
 	/** Bound to the possessed vehicle's OnHealthUpdate on the local controller; pushes the health to the HUD widget. */
 	void HandleHealthUpdate(float HealthPercent);
 
-	/** Moves the OnHealthUpdate binding to NewPawn (unbinding the previous vehicle) and syncs the HUD. Local controllers only. */
+	/** Bound to the possessed vehicle's OnGearChange on the local controller; pushes the gear to the HUD widget. */
+	void UpdateGear(int32 Gear);
+
+	/** Moves the OnHealthUpdate and OnGearChange bindings to NewPawn (unbinding the previous vehicle) and syncs the HUD. Local controllers only. */
 	void BindHealthHUD(APawn* NewPawn);
 
 	/** The vehicle whose OnHealthUpdate we are currently bound to. */
