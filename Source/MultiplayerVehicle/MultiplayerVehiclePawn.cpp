@@ -140,6 +140,14 @@ void AMultiplayerVehiclePawn::PossessedBy(AController* NewController)
 	UpdateOverheadWidgetVisibility();
 }
 
+void AMultiplayerVehiclePawn::UnPossessed()
+{
+	Super::UnPossessed();
+
+	// The controller is cleared by now, so this car is no longer locally controlled and shows its overhead widget again.
+	UpdateOverheadWidgetVisibility();
+}
+
 void AMultiplayerVehiclePawn::OnRep_Controller()
 {
 	Super::OnRep_Controller();
