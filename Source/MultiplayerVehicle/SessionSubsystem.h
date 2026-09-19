@@ -38,6 +38,8 @@ private:
 
 	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
 	void OnDestroySessionComplete(FName SessionName, bool bWasSuccessful);
+	void OnLeaveDestroyComplete(FName SessionName, bool bWasSuccessful);
+	void TravelToMenu();
 	void OnFindSessionsComplete(bool bWasSuccessful);
 	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 
@@ -52,11 +54,13 @@ private:
 
 	FDelegateHandle CreateHandle;
 	FDelegateHandle DestroyHandle;
+	FDelegateHandle LeaveDestroyHandle;
 	FDelegateHandle FindHandle;
 	FDelegateHandle JoinHandle;
 
 	/** Host request that's waiting for an old session to finish being destroyed. */
 	bool bCreateAfterDestroy = false;
+	bool bLeaving = false;
 	int32 PendingMaxPlayers = 4;
 	FString PendingMapName;
 };

@@ -5,6 +5,7 @@
 #include "MultiplayerVehiclePawn.h"
 #include "CarHUD.h"
 #include "CarHealthHUDWidget.h"
+#include "SessionSubsystem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -169,9 +170,18 @@ void ACarPlayerController::SetupInputComponent()
 
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
 	{
-		if (EnterExitInputAction)
+		EnhancedInputComponent->BindAction(EnterExitInputAction, ETriggerEvent::Started, this, &ACarPlayerController::EnterExit);
+		EnhancedInputComponent->BindAction(QuitInputAction, ETriggerEvent::Started, this, &ACarPlayerController::Quit);
+	}
+}
+
+void ACarPlayerController::Quit(const FInputActionValue& Value)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (USessionSubsystem* SessionSubsystem = GameInstance->GetSubsystem<USessionSubsystem>())
 		{
-			EnhancedInputComponent->BindAction(EnterExitInputAction, ETriggerEvent::Started, this, &ACarPlayerController::EnterExit);
+			SessionSubsystem->LeaveSession();
 		}
 	}
 }

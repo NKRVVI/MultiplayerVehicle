@@ -54,6 +54,9 @@ protected:
 	/** Input handler: asks the server to take us out of the car. */
 	void EnterExit(const FInputActionValue& Value);
 
+	/** Input handler: leaves the current session. */
+	void Quit(const FInputActionValue& Value);
+
 	/** Traces from the center of the screen to the world and returns the car closest to the hit location, or null if nothing was hit / no car exists. */
 	AMultiplayerVehiclePawn* FindCarNearScreenCenter() const;
 
@@ -76,6 +79,10 @@ protected:
 	/** Input Action asset - assign in the editor. Triggers exiting the car. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> EnterExitInputAction;
+
+	/** Input Action asset - assign in the editor. Triggers leaving the session. Its key must be in ExitMappingContext or VehicleMappingContext. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> QuitInputAction;
 
 	/** Pawn spawned and possessed when leaving the car. Defaults to ADefaultPawn. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle")

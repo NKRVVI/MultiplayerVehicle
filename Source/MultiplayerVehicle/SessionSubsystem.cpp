@@ -1,6 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "SessionSubsystem.h"
+
+#include "GameMapsSettings.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -195,10 +197,43 @@ void USessionSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionC
 
 void USessionSubsystem::LeaveSession()
 {
+	if (bLeaving)
+	{
+		return;
+	}
+
 	if (SessionInterface.IsValid() && SessionInterface->GetNamedSession(NAME_GameSession))
 	{
-		SessionInterface->DestroySession(NAME_GameSession);
+		bLeaving = true;
+		LeaveDestroyHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
+			FOnDestroySessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnLeaveDestroyComplete));
+		if (!SessionInterface->DestroySession(NAME_GameSession))
+		{
+			SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(LeaveDestroyHandle);
+			bLeaving = false;
+			ShowMessage(TEXT("DestroySession failed to start"), FColor::Red);
+		}
+		return;
 	}
+}
+
+void USessionSubsystem::OnLeaveDestroyComplete(FName SessionName, bool bWasSuccessful)
+{
+	SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(LeaveDestroyHandle);
+	bLeaving = false;
+
+	if (!bWasSuccessful)
+	{
+		ShowMessage(TEXT("DestroySession reported failure, leaving anyway"), FColor::Red);
+	}
+
+	TravelToMenu();
+}
+
+void USessionSubsystem::TravelToMenu()
+{
+	// Leaving the map is what actually shuts down the listen server (dropping its clients) or disconnects a client.
+	UGameplayStatics::OpenLevel(this, FName(*UGameMapsSettings::GetGameDefaultMap()));
 }
 
 void USessionSubsystem::ShowMessage(const FString& Message, const FColor& Color) const
