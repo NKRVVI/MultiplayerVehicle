@@ -57,10 +57,10 @@ protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	void Steer(const FInputActionValue& Value);
-	void MoveForward(const FInputActionValue& Value);
-	void CoastBrake(const FInputActionValue& Value);
+	void Accelerate(const FInputActionValue& Value);
+	void ReleaseAccelerate(const FInputActionValue& Value);
 	void Brake(const FInputActionValue& Value);
-	void StopBrake(const FInputActionValue& Value);
+	void ReleaseBrake(const FInputActionValue& Value);
 	void GearUp(const FInputActionValue& Value);
 	void GearDown(const FInputActionValue& Value);
 
@@ -104,7 +104,7 @@ protected:
 	TObjectPtr<UInputAction> SteerAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> MoveForwardAction;
+	TObjectPtr<UInputAction> AccelerateAction;
 
 	/** Applies the brake directly, regardless of whether the car is currently moving forward or backward. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
