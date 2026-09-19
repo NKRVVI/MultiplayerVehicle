@@ -39,6 +39,10 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true; // required for the NetMulticast impact RPC
 
+	// Cars are only ever driven by players. The default (PlacedInWorld) would give every car placed in the level an
+	// AIController on the server, which counts as "locally controlled" there and blocks players from entering the car.
+	AutoPossessAI = EAutoPossessAI::Disabled;
+
 	CarMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CarMesh"));
 	SetRootComponent(CarMesh);
 
