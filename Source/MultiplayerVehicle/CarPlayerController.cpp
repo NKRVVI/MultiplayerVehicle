@@ -31,9 +31,44 @@ void ACarPlayerController::SetHealthHUDVisbility(bool bVisible)
 	}
 }
 
+void ACarPlayerController::HandleHealthUpdate(float HealthPercent)
+{
+	if (const ACarHUD* CarHUD = GetHUD<ACarHUD>())
+	{
+		if (UCarHealthHUDWidget* HUDWidget = CarHUD->GetHealthWidget())
+		{
+			HUDWidget->UpdateCarHealth(HealthPercent);
+		}
+	}
+}
+
+void ACarPlayerController::BindHealthHUD(APawn* NewPawn)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (AMultiplayerVehiclePawn* OldVehicle = BoundVehicle.Get())
+	{
+		OldVehicle->OnHealthUpdate.RemoveAll(this);
+	}
+
+	BoundVehicle = Cast<AMultiplayerVehiclePawn>(NewPawn);
+	if (AMultiplayerVehiclePawn* Vehicle = BoundVehicle.Get())
+	{
+		Vehicle->OnHealthUpdate.AddUObject(this, &ACarPlayerController::HandleHealthUpdate);
+
+		// Getting into a car doesn't change its health, so nothing would broadcast until the next hit.
+		HandleHealthUpdate(Vehicle->GetHealthPercent());
+	}
+}
+
 void ACarPlayerController::OnRep_Pawn()
 {
 	Super::OnRep_Pawn();
+
+	BindHealthHUD(GetPawn());
 
 	// On foot there is no car to show health for, so take the HUD widget off the screen.
 	if (Cast<ADefaultPawn>(GetPawn()))
@@ -50,6 +85,9 @@ void ACarPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
+	// Server-side counterpart of OnRep_Pawn: only does anything for a listen-server host's own controller.
+	BindHealthHUD(InPawn);
+
 	if (AMultiplayerVehiclePawn* Vehicle = Cast<AMultiplayerVehiclePawn>(InPawn))
 	{
 		Vehicle->OnVehicleDead.AddUObject(this, &ACarPlayerController::HandleVehicleDead);
@@ -63,6 +101,8 @@ void ACarPlayerController::OnUnPossess()
 	{
 		Vehicle->OnVehicleDead.RemoveAll(this);
 	}
+
+	BindHealthHUD(nullptr);
 
 	Super::OnUnPossess();
 }

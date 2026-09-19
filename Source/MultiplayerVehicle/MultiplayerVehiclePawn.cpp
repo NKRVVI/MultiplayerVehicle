@@ -9,8 +9,6 @@
 #include "Camera/CameraComponent.h"
 #include "Components/WidgetComponent.h"
 #include "CarHealthOverheadWidget.h"
-#include "CarHealthHUDWidget.h"
-#include "CarHUD.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -95,7 +93,7 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	Camera->bUsePawnControlRotation = false;
 
 	// --- Overhead widget, only visible to machines that don't control this car ---
-	// Hidden by default; UpdateOverheadWidgetVisibility() shows it once we know the controller.
+	// Hidden by default; UpdateHealthWidget() shows it once we know the controller.
 
 	OverheadWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("OverheadWidget"));
 	OverheadWidget->SetupAttachment(CarMesh);
@@ -130,18 +128,14 @@ void AMultiplayerVehiclePawn::BeginPlay()
 	VehicleMovementComponent->SetUseAutomaticGears(false);
 	VehicleMovementComponent->SetTargetGear(0.f, true);
 
-	UpdateOverheadWidgetVisibility();
+	UpdateHealthWidget();
 }
 
 void AMultiplayerVehiclePawn::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	UpdateOverheadWidgetVisibility();
-	if (IsLocallyControlled())
-	{
-		OverheadWidget->SetVisibility(false);
-	}
+	UpdateHealthWidget();
 }
 
 void AMultiplayerVehiclePawn::UnPossessed()
@@ -149,20 +143,16 @@ void AMultiplayerVehiclePawn::UnPossessed()
 	Super::UnPossessed();
 
 	// The controller is cleared by now, so this car is no longer locally controlled and shows its overhead widget again.
-	UpdateOverheadWidgetVisibility();
+	UpdateHealthWidget();
 }
 
 void AMultiplayerVehiclePawn::OnRep_Controller()
 {
 	Super::OnRep_Controller();
-
-	// On the owning client the controller usually arrives after BeginPlay, so IsLocallyControlled() was still false then.
-	UpdateOverheadWidgetVisibility();
 	
-	if (IsLocallyControlled())
-	{
-		OverheadWidget->SetVisibility(false);
-	}
+	// Driver left: this car is no longer locally controlled, so it goes back to the overhead widget.
+	UpdateHealthWidget();
+	
 }
 
 void AMultiplayerVehiclePawn::OnRep_PlayerState()
@@ -171,16 +161,19 @@ void AMultiplayerVehiclePawn::OnRep_PlayerState()
 
 	// On clients the pawn's PlayerState arrives after BeginPlay (and other clients never get this car's controller),
 	// so the name has to be pushed to the overhead widget when it shows up.
-	UpdateOverheadWidgetVisibility();
-	
-	if (IsLocallyControlled())
-	{
-		OverheadWidget->SetVisibility(false);
-	}
+	UpdateHealthWidget();
 }
 
-void AMultiplayerVehiclePawn::UpdateOverheadWidgetVisibility()
+void AMultiplayerVehiclePawn::UpdateHealthWidget()
 {
+	if (IsLocallyControlled())
+	{
+		// The HUD belongs to the local controller, which listens to OnHealthUpdate.
+		OverheadWidget->SetVisibility(false);
+		OnHealthUpdate.Broadcast(GetHealthPercent());
+		return;
+	}
+
 	// A wreck never shows its overhead widget again, even when the driver is kicked out and the car becomes uncontrolled.
 	if (bDead)
 	{
@@ -188,33 +181,17 @@ void AMultiplayerVehiclePawn::UpdateOverheadWidgetVisibility()
 		return;
 	}
 
-	if (IsLocallyControlled())
+	OverheadWidget->SetVisibility(true);
+	if (UCarHealthOverheadWidget* HealthWidget = Cast<UCarHealthOverheadWidget>(OverheadWidget->GetUserWidgetObject()))
 	{
-		if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+		HealthWidget->UpdateCarHealth(GetHealthPercent());
+		if (const APlayerState* CarPlayerState = GetPlayerState())
 		{
-			if (const ACarHUD* CarHUD = PlayerController->GetHUD<ACarHUD>())
-			{
-				if (UCarHealthHUDWidget* HUDWidget = CarHUD->GetHealthWidget())
-				{
-					HUDWidget->UpdateCarHealth(Health / MaxHealth);
-				}
-			}
+			HealthWidget->UpdateCarName(FName(*CarPlayerState->GetPlayerName()));
 		}
-	}
-	else
-	{
-		OverheadWidget->SetVisibility(true);
-		if (UCarHealthOverheadWidget* HealthWidget = Cast<UCarHealthOverheadWidget>(OverheadWidget->GetUserWidgetObject()))
+		else
 		{
-			HealthWidget->UpdateCarHealth(Health / MaxHealth);
-			if (const APlayerState* CarPlayerState = GetPlayerState())
-			{
-				HealthWidget->UpdateCarName(FName(*CarPlayerState->GetPlayerName()));
-			}
-			else
-			{
-				HealthWidget->UpdateCarName(" ");
-			}
+			HealthWidget->UpdateCarName(" ");
 		}
 	}
 }
@@ -229,27 +206,14 @@ void AMultiplayerVehiclePawn::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 
 void AMultiplayerVehiclePawn::RepNotify_UpdateHealth()
 {
-	// Every client runs this for every pawn it can see: the pawn this machine controls updates the HUD
-	// widget, every other pawn pushes its health to the overhead widget.
+	// Every client runs this for every pawn it can see: the pawn this machine controls broadcasts to the HUD,
+	// every other pawn pushes its health to the overhead widget.
 	if (IsLocallyControlled())
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString::Printf(TEXT("Health: %.0f"), Health));
+	}
 
-		if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
-		{
-			if (const ACarHUD* CarHUD = PlayerController->GetHUD<ACarHUD>())
-			{
-				if (UCarHealthHUDWidget* HUDWidget = CarHUD->GetHealthWidget())
-				{
-					HUDWidget->UpdateCarHealth(Health / MaxHealth);
-				}
-			}
-		}
-	}
-	else if (UCarHealthOverheadWidget* HealthWidget = Cast<UCarHealthOverheadWidget>(OverheadWidget->GetUserWidgetObject()))
-	{
-		HealthWidget->UpdateCarHealth(Health / MaxHealth);
-	}
+	UpdateHealthWidget();
 }
 
 void AMultiplayerVehiclePawn::OnDead()

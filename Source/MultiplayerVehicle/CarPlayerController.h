@@ -36,6 +36,15 @@ protected:
 	/** Server-only: bound to the possessed vehicle's OnVehicleDead; throws the driver out of the wrecked car. */
 	void HandleVehicleDead();
 
+	/** Bound to the possessed vehicle's OnHealthUpdate on the local controller; pushes the health to the HUD widget. */
+	void HandleHealthUpdate(float HealthPercent);
+
+	/** Moves the OnHealthUpdate binding to NewPawn (unbinding the previous vehicle) and syncs the HUD. Local controllers only. */
+	void BindHealthHUD(APawn* NewPawn);
+
+	/** The vehicle whose OnHealthUpdate we are currently bound to. */
+	TWeakObjectPtr<AMultiplayerVehiclePawn> BoundVehicle;
+
 	/** Input handler: asks the server to take us out of the car. */
 	void EnterExit(const FInputActionValue& Value);
 

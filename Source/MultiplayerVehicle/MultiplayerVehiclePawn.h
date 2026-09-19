@@ -17,6 +17,9 @@ class UWidgetComponent;
 /** Broadcast on the server when a vehicle's health reaches 0. */
 DECLARE_MULTICAST_DELEGATE(FOnVehicleDead);
 
+/** Broadcast on the machine controlling a vehicle whenever its health changes. Parameter is health as 0-1 of MaxHealth. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHealthUpdate, float);
+
 /**
  * Drivable car pawn. The car body is a skeletal mesh (a Skeletal Mesh
  * Component is required for UChaosVehicleMovementComponent to simulate at
@@ -86,8 +89,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|UI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UWidgetComponent> OverheadWidget;
 
-	/** Shows OverheadWidget unless this pawn is locally controlled. Re-run whenever the controller may have changed. */
-	void UpdateOverheadWidgetVisibility();
+	/**
+	 * Pushes the current health to whichever widget applies. Locally controlled: hides the overhead widget and
+	 * broadcasts OnHealthUpdate for the local controller's HUD. Otherwise: shows the overhead widget (unless
+	 * dead) and updates its health and name. Re-run whenever health or the controller may have changed.
+	 */
+	void UpdateHealthWidget();
 
 	// The Input Mapping Context holding these actions' key mappings is added by ACarPlayerController.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
@@ -151,6 +158,10 @@ public:
 	/** Server-only: fires once when Health drops to 0. The possessing player controller binds to this to kick the driver out. */
 	FOnVehicleDead OnVehicleDead;
 
+	/** Broadcast from UpdateHealthWidget when this pawn is locally controlled. The local player controller binds to this to drive the HUD widget. */
+	FOnHealthUpdate OnHealthUpdate;
+
+	FORCEINLINE float GetHealthPercent() const { return Health / MaxHealth; }
 	FORCEINLINE bool IsDead() const { return bDead; }
 	FORCEINLINE USkeletalMeshComponent* GetCarMesh() const { return CarMesh; }
 	FORCEINLINE UChaosWheeledVehicleMovementComponent* GetVehicleMovementComponent() const { return VehicleMovementComponent; }
