@@ -15,6 +15,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/Engine.h"
 #include "Curves/CurveFloat.h"
@@ -147,6 +148,15 @@ void AMultiplayerVehiclePawn::OnRep_Controller()
 	UpdateOverheadWidgetVisibility();
 }
 
+void AMultiplayerVehiclePawn::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	// On clients the pawn's PlayerState arrives after BeginPlay (and other clients never get this car's controller),
+	// so the name has to be pushed to the overhead widget when it shows up.
+	UpdateOverheadWidgetVisibility();
+}
+
 void AMultiplayerVehiclePawn::UpdateOverheadWidgetVisibility()
 {
 	if (IsLocallyControlled())
@@ -167,6 +177,10 @@ void AMultiplayerVehiclePawn::UpdateOverheadWidgetVisibility()
 		OverheadWidget->SetVisibility(true);
 		UCarHealthOverheadWidget* HealthWidget = Cast<UCarHealthOverheadWidget>(OverheadWidget->GetUserWidgetObject());
 		HealthWidget->UpdateCarHealth(Health / MaxHealth);
+		if (const APlayerState* CarPlayerState = GetPlayerState())
+		{
+			HealthWidget->UpdateCarName(FName(*CarPlayerState->GetPlayerName()));
+		}
 	}
 }
 

@@ -19,4 +19,7 @@ public:
 	/** Called with the car's current health as a 0-1 fraction of max. The C++ default does nothing; override in the Widget Blueprint. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Vehicle|Health")
 	void UpdateCarHealth(float Percentage);
+	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void UpdateCarName(const FName Name);
 };

@@ -4,5 +4,8 @@
 
 void UCarHealthOverheadWidget::UpdateCarHealth_Implementation(float Percentage)
 {
-	// Intentionally empty - the Widget Blueprint overrides this to update its visuals.
+}
+
+void UCarHealthOverheadWidget::UpdateCarName_Implementation(const FName Name)
+{
 }
