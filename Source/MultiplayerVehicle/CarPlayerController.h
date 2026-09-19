@@ -29,6 +29,13 @@ public:
 protected:
 	virtual void SetupInputComponent() override;
 
+	// Server-only: bind to / unbind from a vehicle's OnVehicleDead while we possess it.
+	virtual void OnPossess(APawn* InPawn) override;
+	virtual void OnUnPossess() override;
+
+	/** Server-only: bound to the possessed vehicle's OnVehicleDead; throws the driver out of the wrecked car. */
+	void HandleVehicleDead();
+
 	/** Input handler: asks the server to take us out of the car. */
 	void EnterExit(const FInputActionValue& Value);
 

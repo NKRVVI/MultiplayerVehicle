@@ -217,6 +217,7 @@ void AMultiplayerVehiclePawn::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AMultiplayerVehiclePawn, Health);
+	DOREPLIFETIME(AMultiplayerVehiclePawn, bDead);
 }
 
 void AMultiplayerVehiclePawn::RepNotify_UpdateHealth()
@@ -253,6 +254,12 @@ void AMultiplayerVehiclePawn::DecrementHealth(float Amount)
 
 	Health = FMath::Max(0.f, Health - Amount);
 	RepNotify_UpdateHealth();
+
+	if (!bDead && Health <= 0.f)
+	{
+		bDead = true;
+		OnVehicleDead.Broadcast();
+	}
 }
 
 void AMultiplayerVehiclePawn::OnCarHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)

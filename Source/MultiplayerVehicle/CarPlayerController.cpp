@@ -46,6 +46,33 @@ void ACarPlayerController::OnRep_Pawn()
 	}
 }
 
+void ACarPlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+
+	if (AMultiplayerVehiclePawn* Vehicle = Cast<AMultiplayerVehiclePawn>(InPawn))
+	{
+		Vehicle->OnVehicleDead.AddUObject(this, &ACarPlayerController::HandleVehicleDead);
+	}
+}
+
+void ACarPlayerController::OnUnPossess()
+{
+	// Grab the pawn first: Super clears it.
+	if (AMultiplayerVehiclePawn* Vehicle = Cast<AMultiplayerVehiclePawn>(GetPawn()))
+	{
+		Vehicle->OnVehicleDead.RemoveAll(this);
+	}
+
+	Super::OnUnPossess();
+}
+
+void ACarPlayerController::HandleVehicleDead()
+{
+	// Already on the server, so this runs the implementation directly.
+	ServerExitVehicle();
+}
+
 void ACarPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();

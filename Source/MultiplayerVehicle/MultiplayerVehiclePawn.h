@@ -14,6 +14,9 @@ class USpringArmComponent;
 class UCameraComponent;
 class UWidgetComponent;
 
+/** Broadcast on the server when a vehicle's health reaches 0. */
+DECLARE_MULTICAST_DELEGATE(FOnVehicleDead);
+
 /**
  * Drivable car pawn. The car body is a skeletal mesh (a Skeletal Mesh
  * Component is required for UChaosVehicleMovementComponent to simulate at
@@ -113,6 +116,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Health")
 	float MaxHealth = 100.f;
 
+	/** True once Health has reached 0. Set on the server only; replicated to clients. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Health")
+	bool bDead = false;
+
 	/** RepNotify for Health. Only fires on clients - on the server, call it manually after changing Health. */
 	UFUNCTION()
 	void RepNotify_UpdateHealth();
@@ -136,6 +143,9 @@ protected:
 	void DecrementHealth(float Amount);
 
 public:
+	/** Server-only: fires once when Health drops to 0. The possessing player controller binds to this to kick the driver out. */
+	FOnVehicleDead OnVehicleDead;
+
 	FORCEINLINE USkeletalMeshComponent* GetCarMesh() const { return CarMesh; }
 	FORCEINLINE UChaosWheeledVehicleMovementComponent* GetVehicleMovementComponent() const { return VehicleMovementComponent; }
 	FORCEINLINE USpringArmComponent* GetSpringArm() const { return SpringArm; }
