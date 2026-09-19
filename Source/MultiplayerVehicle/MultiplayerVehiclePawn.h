@@ -83,6 +83,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Vehicle")
 	float ReverseSpeedThreshold = 15.f;
 
+	/** Brake input strength (0-1) applied automatically once the move-forward input is released, so the car coasts to a stop instead of just rolling freely. Higher values slow the car down faster. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle")
+	float CoastBrakeStrength = 0.2f;
+
 public:
 	FORCEINLINE USkeletalMeshComponent* GetCarMesh() const { return CarMesh; }
 	FORCEINLINE UChaosWheeledVehicleMovementComponent* GetVehicleMovementComponent() const { return VehicleMovementComponent; }

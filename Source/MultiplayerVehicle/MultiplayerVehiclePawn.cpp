@@ -127,10 +127,10 @@ void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerI
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::Steer);
-		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::Completed, this, &AMultiplayerVehiclePawn::Steer);
+		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::None, this, &AMultiplayerVehiclePawn::Steer);
 
 		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::MoveForward);
-		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::Completed, this, &AMultiplayerVehiclePawn::Stop);
+		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::None, this, &AMultiplayerVehiclePawn::Stop);
 
 		// Manual gear shifting disabled for now - automatic transmission handles gears.
 		// EnhancedInputComponent->BindAction(GearUpAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearUp);
@@ -164,7 +164,6 @@ void AMultiplayerVehiclePawn::MoveForward(const FInputActionValue& Value)
 
 void AMultiplayerVehiclePawn::Stop(const FInputActionValue& Value)
 {
-	constexpr float ReleasedBrakeAmount = 0.2f;
 	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, TEXT("Brake"));
 	if (VehicleMovementComponent->GetCurrentGear() < 0)
 	{
@@ -173,7 +172,7 @@ void AMultiplayerVehiclePawn::Stop(const FInputActionValue& Value)
 		// our usual release brake here would just keep the car creeping backward instead
 		// of stopping it. Apply a light forward throttle instead - while rolling backward
 		// this acts as the counter-force (brake) against the reverse motion.
-		VehicleMovementComponent->SetThrottleInput(ReleasedBrakeAmount);
+		VehicleMovementComponent->SetThrottleInput(CoastBrakeStrength);
 		VehicleMovementComponent->SetBrakeInput(0.f);
 	}
 	else
@@ -181,7 +180,7 @@ void AMultiplayerVehiclePawn::Stop(const FInputActionValue& Value)
 		// Keys released - light auto-brake so the car visibly slows down
 		// instead of just coasting on engine braking/rolling resistance.
 		VehicleMovementComponent->SetThrottleInput(0.f);
-		VehicleMovementComponent->SetBrakeInput(ReleasedBrakeAmount);
+		VehicleMovementComponent->SetBrakeInput(CoastBrakeStrength);
 	}
 }
 
