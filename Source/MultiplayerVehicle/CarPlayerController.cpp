@@ -7,6 +7,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/DefaultPawn.h"
 
 ACarPlayerController::ACarPlayerController()
@@ -38,16 +39,82 @@ void ACarPlayerController::SetupInputComponent()
 
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
 	{
-		if (ExitInputAction)
+		if (EnterExitInputAction)
 		{
-			EnhancedInputComponent->BindAction(ExitInputAction, ETriggerEvent::Started, this, &ACarPlayerController::OnExitInput);
+			EnhancedInputComponent->BindAction(EnterExitInputAction, ETriggerEvent::Started, this, &ACarPlayerController::EnterExit);
 		}
 	}
 }
 
-void ACarPlayerController::OnExitInput(const FInputActionValue& Value)
+void ACarPlayerController::EnterExit(const FInputActionValue& Value)
 {
+	if (Cast<ADefaultPawn>(GetPawn()))
+	{
+		// On foot: look for the car nearest to where the player is aiming on the ground.
+		if (AMultiplayerVehiclePawn* NearestCar = FindCarNearScreenCenter())
+		{
+			ServerEnterVehicle(NearestCar);
+		}
+		return;
+	}
+
 	ServerExitVehicle();
+}
+
+AMultiplayerVehiclePawn* ACarPlayerController::FindCarNearScreenCenter() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	int32 ViewportSizeX = 0;
+	int32 ViewportSizeY = 0;
+	GetViewportSize(ViewportSizeX, ViewportSizeY);
+
+	FVector TraceStart;
+	FVector TraceDirection;
+	if (!DeprojectScreenPositionToWorld(ViewportSizeX * 0.5f, ViewportSizeY * 0.5f, TraceStart, TraceDirection))
+	{
+		return nullptr;
+	}
+
+	FHitResult Hit;
+	if (!World->LineTraceSingleByChannel(Hit, TraceStart, TraceStart + TraceDirection * GroundTraceDistance, ECC_Visibility))
+	{
+		return nullptr;
+	}
+
+	AMultiplayerVehiclePawn* NearestCar = nullptr;
+	float NearestDistSquared = 5000.f;
+	for (TActorIterator<AMultiplayerVehiclePawn> It(World); It; ++It)
+	{
+		const float DistSquared = FVector::DistSquared(It->GetActorLocation(), Hit.ImpactPoint);
+		if (DistSquared < NearestDistSquared)
+		{
+			NearestDistSquared = DistSquared;
+			NearestCar = *It;
+		}
+	}
+	return NearestCar;
+}
+
+void ACarPlayerController::ServerEnterVehicle_Implementation(AMultiplayerVehiclePawn* Vehicle)
+{
+	// Only take a car nobody is driving, and only from on foot, so the pawn we destroy below is always the exit pawn.
+	ADefaultPawn* DefaultPawn = Cast<ADefaultPawn>(GetPawn());
+	if (!Vehicle || !DefaultPawn || Vehicle->GetController())
+	{
+		return;
+	}
+
+	// Possess unpossesses the default pawn first.
+	Possess(Vehicle);
+	if (GetPawn() == Vehicle)
+	{
+		DefaultPawn->Destroy();
+	}
 }
 
 void ACarPlayerController::ServerExitVehicle_Implementation()

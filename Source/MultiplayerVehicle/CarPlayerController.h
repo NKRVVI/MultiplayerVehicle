@@ -7,6 +7,7 @@
 #include "InputActionValue.h"
 #include "CarPlayerController.generated.h"
 
+class AMultiplayerVehiclePawn;
 class UInputAction;
 class UInputMappingContext;
 
@@ -26,7 +27,14 @@ protected:
 	virtual void SetupInputComponent() override;
 
 	/** Input handler: asks the server to take us out of the car. */
-	void OnExitInput(const FInputActionValue& Value);
+	void EnterExit(const FInputActionValue& Value);
+
+	/** Traces from the center of the screen to the world and returns the car closest to the hit location, or null if nothing was hit / no car exists. */
+	AMultiplayerVehiclePawn* FindCarNearScreenCenter() const;
+
+	/** Runs on the server: if the vehicle isn't possessed yet, possesses it and destroys the pawn we were on foot with. */
+	UFUNCTION(Server, Reliable)
+	void ServerEnterVehicle(AMultiplayerVehiclePawn* Vehicle);
 
 	/** Runs on the server: spawns ExitPawnClass next to the current vehicle and possesses it. */
 	UFUNCTION(Server, Reliable)
@@ -42,7 +50,7 @@ protected:
 
 	/** Input Action asset - assign in the editor. Triggers exiting the car. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> ExitInputAction;
+	TObjectPtr<UInputAction> EnterExitInputAction;
 
 	/** Pawn spawned and possessed when leaving the car. Defaults to ADefaultPawn. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle")
@@ -51,4 +59,8 @@ protected:
 	/** How far to the side of the car (cm) the exit pawn is spawned. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle")
 	float ExitSpawnOffset = 250.f;
+
+	/** How far (cm) the screen-center trace reaches when looking for the ground. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle")
+	float GroundTraceDistance = 100000.f;
 };
