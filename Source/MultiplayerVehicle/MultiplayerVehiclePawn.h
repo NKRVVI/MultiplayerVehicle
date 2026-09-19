@@ -13,6 +13,7 @@ class UInputMappingContext;
 class UInputAction;
 class USpringArmComponent;
 class UCameraComponent;
+class UWidgetComponent;
 
 /**
  * Drivable car pawn. The car body is a skeletal mesh (a Skeletal Mesh
@@ -39,6 +40,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_Controller() override;
 
 protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
@@ -74,6 +77,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> Camera;
 
+	/** Floating widget above the car (assign the widget class on this component in the Blueprint). Shown only on cars this machine does not control. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|UI", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UWidgetComponent> OverheadWidget;
+
+	/** Shows OverheadWidget unless this pawn is locally controlled. Re-run whenever the controller may have changed. */
+	void UpdateOverheadWidgetVisibility();
+
 	/** Input Mapping Context asset - assign in the editor. Holds the key-to-action mappings for the actions below. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> VehicleMappingContext;
@@ -100,6 +110,10 @@ protected:
 	/** Vehicle health. Set on the server only; clients get it via replication and RepNotify_UpdateHealth runs when it arrives. */
 	UPROPERTY(ReplicatedUsing = RepNotify_UpdateHealth, EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Health")
 	float Health = 100.f;
+
+	/** Health value that counts as 100% when reporting health to the overhead widget. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Health")
+	float MaxHealth = 100.f;
 
 	/** RepNotify for Health. Only fires on clients - on the server, call it manually after changing Health. */
 	UFUNCTION()

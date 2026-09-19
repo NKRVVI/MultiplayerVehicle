@@ -7,6 +7,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Components/WidgetComponent.h"
+#include "CarHealthOverheadWidget.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -89,6 +91,13 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
 	Camera->bUsePawnControlRotation = false;
 
+	// --- Overhead widget, only visible to machines that don't control this car ---
+	// Hidden by default; UpdateOverheadWidgetVisibility() shows it once we know the controller.
+
+	OverheadWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("OverheadWidget"));
+	OverheadWidget->SetupAttachment(CarMesh);
+	OverheadWidget->SetVisibility(false);
+
 	// VehicleMappingContext, SteerAction, MoveForwardAction, GearUpAction and GearDownAction are
 	// assigned in the editor (see the header) - nothing to construct here.
 }
@@ -117,6 +126,33 @@ void AMultiplayerVehiclePawn::BeginPlay()
 
 	VehicleMovementComponent->SetUseAutomaticGears(false);
 	VehicleMovementComponent->SetTargetGear(0.f, true);
+
+	UpdateOverheadWidgetVisibility();
+}
+
+void AMultiplayerVehiclePawn::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	UpdateOverheadWidgetVisibility();
+}
+
+void AMultiplayerVehiclePawn::OnRep_Controller()
+{
+	Super::OnRep_Controller();
+
+	// On the owning client the controller usually arrives after BeginPlay, so IsLocallyControlled() was still false then.
+	UpdateOverheadWidgetVisibility();
+}
+
+void AMultiplayerVehiclePawn::UpdateOverheadWidgetVisibility()
+{
+	if (!IsLocallyControlled())
+	{
+		OverheadWidget->SetVisibility(true);
+		UCarHealthOverheadWidget* HealthWidget = Cast<UCarHealthOverheadWidget>(OverheadWidget->GetUserWidgetObject());
+		HealthWidget->UpdateCarHealth(Health / MaxHealth);
+	}
 }
 
 void AMultiplayerVehiclePawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -128,10 +164,15 @@ void AMultiplayerVehiclePawn::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 
 void AMultiplayerVehiclePawn::RepNotify_UpdateHealth()
 {
-	// Every client runs this for every pawn it can see, so only show health for the pawn this machine controls.
+	// Every client runs this for every pawn it can see: the pawn this machine controls gets an on-screen
+	// message, every other pawn pushes its health to the overhead widget.
 	if (IsLocallyControlled())
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString::Printf(TEXT("Health: %.0f"), Health));
+	}
+	else if (UCarHealthOverheadWidget* HealthWidget = Cast<UCarHealthOverheadWidget>(OverheadWidget->GetUserWidgetObject()))
+	{
+		HealthWidget->UpdateCarHealth(Health / MaxHealth);
 	}
 }
 
