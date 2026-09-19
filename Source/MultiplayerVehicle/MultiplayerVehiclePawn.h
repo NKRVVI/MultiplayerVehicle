@@ -116,9 +116,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Health")
 	float MaxHealth = 100.f;
 
-	/** True once Health has reached 0. Set on the server only; replicated to clients. */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Health")
+	/** True once Health has reached 0. Set on the server only; clients get it via replication and OnDead runs when it arrives. */
+	UPROPERTY(ReplicatedUsing = OnDead, BlueprintReadOnly, Category = "Vehicle|Health")
 	bool bDead = false;
+
+	/** RepNotify for bDead. Only fires on clients - on the server, call it manually after setting bDead. Hides the overhead widget. */
+	UFUNCTION()
+	void OnDead();
 
 	/** RepNotify for Health. Only fires on clients - on the server, call it manually after changing Health. */
 	UFUNCTION()
@@ -146,6 +150,7 @@ public:
 	/** Server-only: fires once when Health drops to 0. The possessing player controller binds to this to kick the driver out. */
 	FOnVehicleDead OnVehicleDead;
 
+	FORCEINLINE bool IsDead() const { return bDead; }
 	FORCEINLINE USkeletalMeshComponent* GetCarMesh() const { return CarMesh; }
 	FORCEINLINE UChaosWheeledVehicleMovementComponent* GetVehicleMovementComponent() const { return VehicleMovementComponent; }
 	FORCEINLINE USpringArmComponent* GetSpringArm() const { return SpringArm; }

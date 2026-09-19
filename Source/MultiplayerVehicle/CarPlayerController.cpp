@@ -111,6 +111,12 @@ void ACarPlayerController::EnterExit(const FInputActionValue& Value)
 		// On foot: look for the car nearest to where the player is aiming on the ground.
 		if (AMultiplayerVehiclePawn* NearestCar = FindCarNearScreenCenter())
 		{
+			// bDead is replicated, so this saves a round trip; the server re-checks it anyway.
+			if (NearestCar->IsDead())
+			{
+				return;
+			}
+
 			ServerEnterVehicle(NearestCar);
 		}
 		return;
@@ -160,9 +166,9 @@ AMultiplayerVehiclePawn* ACarPlayerController::FindCarNearScreenCenter() const
 
 void ACarPlayerController::ServerEnterVehicle_Implementation(AMultiplayerVehiclePawn* Vehicle)
 {
-	// Only take a car nobody is driving, and only from on foot, so the pawn we destroy below is always the exit pawn.
+	// Only take a living car nobody is driving, and only from on foot, so the pawn we destroy below is always the exit pawn.
 	ADefaultPawn* DefaultPawn = Cast<ADefaultPawn>(GetPawn());
-	if (!Vehicle || !DefaultPawn || Vehicle->GetController())
+	if (!Vehicle || !DefaultPawn || Vehicle->IsDead() || Vehicle->GetController())
 	{
 		return;
 	}

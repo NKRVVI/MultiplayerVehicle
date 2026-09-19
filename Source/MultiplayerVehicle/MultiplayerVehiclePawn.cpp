@@ -181,6 +181,13 @@ void AMultiplayerVehiclePawn::OnRep_PlayerState()
 
 void AMultiplayerVehiclePawn::UpdateOverheadWidgetVisibility()
 {
+	// A wreck never shows its overhead widget again, even when the driver is kicked out and the car becomes uncontrolled.
+	if (bDead)
+	{
+		OverheadWidget->SetVisibility(false);
+		return;
+	}
+
 	if (IsLocallyControlled())
 	{
 		if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
@@ -245,6 +252,11 @@ void AMultiplayerVehiclePawn::RepNotify_UpdateHealth()
 	}
 }
 
+void AMultiplayerVehiclePawn::OnDead()
+{
+	OverheadWidget->SetVisibility(false);
+}
+
 void AMultiplayerVehiclePawn::DecrementHealth(float Amount)
 {
 	if (!HasAuthority())
@@ -258,6 +270,7 @@ void AMultiplayerVehiclePawn::DecrementHealth(float Amount)
 	if (!bDead && Health <= 0.f)
 	{
 		bDead = true;
+		OnDead();
 		OnVehicleDead.Broadcast();
 	}
 }
