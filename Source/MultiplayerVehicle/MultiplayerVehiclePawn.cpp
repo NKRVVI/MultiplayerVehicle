@@ -331,17 +331,18 @@ void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerI
 	// this pawn only binds the actions to its handler functions.
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::Steer);
-		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::None, this, &AMultiplayerVehiclePawn::Steer);
+		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::Triggered, this, &ThisClass::Steer);
+		EnhancedInputComponent->BindAction(SteerAction, ETriggerEvent::None, this, &ThisClass::Steer);
 
-		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::MoveForward);
-		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::None, this, &ThisClass::CoastBrake);
+		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::Triggered, this, &ThisClass::MoveForward);
+		EnhancedInputComponent->BindAction(MoveForwardAction, ETriggerEvent::Completed, this, &ThisClass::CoastBrake);
 
-		EnhancedInputComponent->BindAction(BrakeAction, ETriggerEvent::Triggered, this, &AMultiplayerVehiclePawn::Brake);
+		EnhancedInputComponent->BindAction(BrakeAction, ETriggerEvent::Started, this, &ThisClass::Brake);
+		EnhancedInputComponent->BindAction(BrakeAction, ETriggerEvent::Completed, this, &ThisClass::StopBrake);
 
 		// Manual gear shifting disabled for now - automatic transmission handles gears.
-		EnhancedInputComponent->BindAction(GearUpAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearUp);
-		EnhancedInputComponent->BindAction(GearDownAction, ETriggerEvent::Started, this, &AMultiplayerVehiclePawn::GearDown);
+		EnhancedInputComponent->BindAction(GearUpAction, ETriggerEvent::Started, this, &ThisClass::GearUp);
+		EnhancedInputComponent->BindAction(GearDownAction, ETriggerEvent::Started, this, &ThisClass::GearDown);
 	}
 }
 
@@ -358,19 +359,22 @@ void AMultiplayerVehiclePawn::MoveForward(const FInputActionValue& Value)
 	const float AxisValue = Value.Get<float>();
 
 	VehicleMovementComponent->SetThrottleInput(AxisValue);
-	VehicleMovementComponent->SetBrakeInput(0.f);
 }
 
 void AMultiplayerVehiclePawn::CoastBrake(const FInputActionValue& Value)
 {
 	VehicleMovementComponent->SetThrottleInput(0.f);
-	VehicleMovementComponent->SetBrakeInput(0.f);
 }
 
 void AMultiplayerVehiclePawn::Brake(const FInputActionValue& Value)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Cyan, TEXT("Brake"));
 	VehicleMovementComponent->SetBrakeInput(HarshBrakeStrength);
+}
+
+void AMultiplayerVehiclePawn::StopBrake(const FInputActionValue& Value)
+{
+	VehicleMovementComponent->SetBrakeInput(0.f);
 }
 
 void AMultiplayerVehiclePawn::GearUp(const FInputActionValue& Value)

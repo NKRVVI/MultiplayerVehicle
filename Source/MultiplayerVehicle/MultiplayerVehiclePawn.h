@@ -54,6 +54,7 @@ protected:
 	void MoveForward(const FInputActionValue& Value);
 	void CoastBrake(const FInputActionValue& Value);
 	void Brake(const FInputActionValue& Value);
+	void StopBrake(const FInputActionValue& Value);
 	void GearUp(const FInputActionValue& Value);
 	void GearDown(const FInputActionValue& Value);
 
