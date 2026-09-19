@@ -87,7 +87,7 @@ AMultiplayerVehiclePawn* ACarPlayerController::FindCarNearScreenCenter() const
 	}
 
 	AMultiplayerVehiclePawn* NearestCar = nullptr;
-	float NearestDistSquared = 5000.f;
+	float NearestDistSquared = FLT_MAX;
 	for (TActorIterator<AMultiplayerVehiclePawn> It(World); It; ++It)
 	{
 		const float DistSquared = FVector::DistSquared(It->GetActorLocation(), Hit.ImpactPoint);

@@ -175,11 +175,17 @@ void AMultiplayerVehiclePawn::UpdateOverheadWidgetVisibility()
 	else
 	{
 		OverheadWidget->SetVisibility(true);
-		UCarHealthOverheadWidget* HealthWidget = Cast<UCarHealthOverheadWidget>(OverheadWidget->GetUserWidgetObject());
-		HealthWidget->UpdateCarHealth(Health / MaxHealth);
-		if (const APlayerState* CarPlayerState = GetPlayerState())
+		if (UCarHealthOverheadWidget* HealthWidget = Cast<UCarHealthOverheadWidget>(OverheadWidget->GetUserWidgetObject()))
 		{
-			HealthWidget->UpdateCarName(FName(*CarPlayerState->GetPlayerName()));
+			HealthWidget->UpdateCarHealth(Health / MaxHealth);
+			if (const APlayerState* CarPlayerState = GetPlayerState())
+			{
+				HealthWidget->UpdateCarName(FName(*CarPlayerState->GetPlayerName()));
+			}
+			else
+			{
+				HealthWidget->UpdateCarName(" ");
+			}
 		}
 	}
 }
