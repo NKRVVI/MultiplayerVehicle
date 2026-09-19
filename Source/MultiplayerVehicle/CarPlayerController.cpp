@@ -3,6 +3,8 @@
 
 #include "CarPlayerController.h"
 #include "MultiplayerVehiclePawn.h"
+#include "CarHUD.h"
+#include "CarHealthHUDWidget.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -13,6 +15,35 @@
 ACarPlayerController::ACarPlayerController()
 {
 	ExitPawnClass = ADefaultPawn::StaticClass();
+}
+
+void ACarPlayerController::SetHealthHUDVisbility(bool bVisible)
+{
+	if (IsLocalController())
+	{
+		if (const ACarHUD* CarHUD = GetHUD<ACarHUD>())
+		{
+			if (UCarHealthHUDWidget* HUDWidget = CarHUD->GetHealthWidget())
+			{
+				HUDWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+			}
+		}
+	}
+}
+
+void ACarPlayerController::OnRep_Pawn()
+{
+	Super::OnRep_Pawn();
+
+	// On foot there is no car to show health for, so take the HUD widget off the screen.
+	if (Cast<ADefaultPawn>(GetPawn()))
+	{
+		SetHealthHUDVisbility(false);
+	}
+	else
+	{
+		SetHealthHUDVisbility(true);
+	}
 }
 
 void ACarPlayerController::SetupInputComponent()
@@ -114,6 +145,7 @@ void ACarPlayerController::ServerEnterVehicle_Implementation(AMultiplayerVehicle
 	if (GetPawn() == Vehicle)
 	{
 		DefaultPawn->Destroy();
+		SetHealthHUDVisbility(true);
 	}
 }
 
@@ -137,5 +169,6 @@ void ACarPlayerController::ServerExitVehicle_Implementation()
 	{
 		// Possess unpossesses the vehicle first; the vehicle stays in the world.
 		Possess(NewPawn);
+		SetHealthHUDVisbility(false);
 	}
 }

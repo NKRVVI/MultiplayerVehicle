@@ -22,6 +22,9 @@ class MULTIPLAYERVEHICLE_API ACarPlayerController : public APlayerController
 
 public:
 	ACarPlayerController();
+	void SetHealthHUDVisbility(bool bVisible);
+
+	virtual void OnRep_Pawn() override;
 
 protected:
 	virtual void SetupInputComponent() override;
