@@ -2,8 +2,6 @@
 
 #include "MultiplayerVehiclePawn.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
-#include "VehicleWheelFront.h"
-#include "VehicleWheelRear.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
@@ -20,41 +18,18 @@
 #include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
 
-namespace
-{
-	// Placeholder chassis mesh - SportsCar sample mesh bundled with the ChaosModularVehicleExamples
-	// plugin (content-only, enabled in the .uproject). Swap for your own car mesh once you have one.
-	// No AnimInstance is assigned, so it renders in its bind pose - wheels don't visually rotate/steer.
-	const TCHAR* PlaceholderMeshPath = TEXT("/ChaosModularVehicleExamples/Models/SportsCar/SKM_SportsCar.SKM_SportsCar");
-
-	// Bone names on the placeholder mesh's skeleton - used to position the (invisible-motion) physics wheels.
-	const FName WheelBoneFrontLeft(TEXT("Phys_Wheel_FL"));
-	const FName WheelBoneFrontRight(TEXT("Phys_Wheel_FR"));
-	const FName WheelBoneRearLeft(TEXT("Phys_Wheel_BL"));
-	const FName WheelBoneRearRight(TEXT("Phys_Wheel_BR"));
-}
-
 AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	bReplicates = true; // required for the NetMulticast impact RPC
+	bReplicates = true;
 
-	// Cars are only ever driven by players. The default (PlacedInWorld) would give every car placed in the level an
-	// AIController on the server, which counts as "locally controlled" there and blocks players from entering the car.
+	//for cars that are preplaced on the server level
 	AutoPossessAI = EAutoPossessAI::Disabled;
-
-	// The game mode spawns this class as the default pawn at a PlayerStart. With the default (Undefined) handling the spawn is refused
-	// when the start is taken (another car parked on it), and the joining player is left with no pawn, parked at the start.
+	
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 	CarMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CarMesh"));
 	SetRootComponent(CarMesh);
-
-	static ConstructorHelpers::FObjectFinder<USkeletalMesh> PlaceholderMeshFinder(PlaceholderMeshPath);
-	if (PlaceholderMeshFinder.Succeeded())
-	{
-		CarMesh->SetSkeletalMeshAsset(PlaceholderMeshFinder.Object);
-	}
 
 	CarMesh->SetCollisionProfileName(TEXT("Vehicle"));
 	CarMesh->SetSimulatePhysics(true);
@@ -65,21 +40,7 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 
 	VehicleMovementComponent = CreateDefaultSubobject<UChaosWheeledVehicleMovementComponent>(TEXT("VehicleMovementComponent"));
 	VehicleMovementComponent->SetUpdatedComponent(CarMesh);
-
-	VehicleMovementComponent->WheelSetups.SetNum(4);
-
-	VehicleMovementComponent->WheelSetups[0].WheelClass = UVehicleWheelFront::StaticClass();
-	VehicleMovementComponent->WheelSetups[0].BoneName = WheelBoneFrontLeft;
-
-	VehicleMovementComponent->WheelSetups[1].WheelClass = UVehicleWheelFront::StaticClass();
-	VehicleMovementComponent->WheelSetups[1].BoneName = WheelBoneFrontRight;
-
-	VehicleMovementComponent->WheelSetups[2].WheelClass = UVehicleWheelRear::StaticClass();
-	VehicleMovementComponent->WheelSetups[2].BoneName = WheelBoneRearLeft;
-
-	VehicleMovementComponent->WheelSetups[3].WheelClass = UVehicleWheelRear::StaticClass();
-	VehicleMovementComponent->WheelSetups[3].BoneName = WheelBoneRearRight;
-
+	
 	// --- Chase camera, positioned behind the car ---
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
