@@ -227,6 +227,10 @@ void AMultiplayerVehiclePawn::RepNotify_UpdateHealth()
 void AMultiplayerVehiclePawn::OnDead()
 {
 	OverheadWidget->SetVisibility(false);
+
+	// The driver is thrown out on death, so no release event will ever arrive to clear the last input they held.
+	VehicleMovementComponent->SetThrottleInput(0.f);
+	VehicleMovementComponent->SetBrakeInput(0.f);
 }
 
 void AMultiplayerVehiclePawn::DecrementHealth(float Amount)
