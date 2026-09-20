@@ -8,11 +8,6 @@
 
 class UCarHealthHUDWidget;
 
-/**
- * Per-player HUD. Creates the health widget and adds it to the viewport when the HUD spawns
- * (which only happens for a local player's PlayerController). Set HealthWidgetClass on a
- * Blueprint subclass of this, and use that Blueprint as the game mode's HUD class.
- */
 UCLASS()
 class MULTIPLAYERVEHICLE_API ACarHUD : public AHUD
 {

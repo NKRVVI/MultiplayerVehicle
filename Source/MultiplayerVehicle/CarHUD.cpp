@@ -16,8 +16,7 @@ void ACarHUD::BeginPlay()
 		{
 			HealthWidget->AddToViewport();
 
-			// A listen-server host possesses its first pawn before this HUD exists, so the pawn's health and gear
-			// were pushed to a null widget. Catch the widget up now.
+			// A listen-server host possesses its first pawn before this HUD exists, so the hud is not updated, so updating when hud is spawned
 			if (ACarPlayerController* CarController = Cast<ACarPlayerController>(GetOwningPlayerController()))
 			{
 				CarController->RefreshHUD();

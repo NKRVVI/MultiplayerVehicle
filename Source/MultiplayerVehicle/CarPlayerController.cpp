@@ -119,7 +119,7 @@ void ACarPlayerController::OnPossess(APawn* InPawn)
 	Super::OnPossess(InPawn);
 
 	BindHealthHUD(InPawn);
-	// Server-side counterpart of OnRep_Pawn: only does anything for a listen-server host's own controller.
+	// Server-side counterpart of OnRep_Pawn
 
 	if (AMultiplayerVehiclePawn* Vehicle = Cast<AMultiplayerVehiclePawn>(InPawn))
 	{
@@ -129,7 +129,6 @@ void ACarPlayerController::OnPossess(APawn* InPawn)
 
 void ACarPlayerController::OnUnPossess()
 {
-	// Grab the pawn first: Super clears it.
 	if (AMultiplayerVehiclePawn* Vehicle = Cast<AMultiplayerVehiclePawn>(GetPawn()))
 	{
 		Vehicle->OnVehicleDead.RemoveAll(this);
@@ -142,7 +141,6 @@ void ACarPlayerController::OnUnPossess()
 
 void ACarPlayerController::HandleVehicleDead()
 {
-	// Already on the server, so this runs the implementation directly.
 	ServerExitVehicle();
 }
 
@@ -150,7 +148,6 @@ void ACarPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	// Only called for local controllers, so this never runs for other players' controllers on the server.
 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
@@ -190,10 +187,8 @@ void ACarPlayerController::EnterExit(const FInputActionValue& Value)
 {
 	if (Cast<ADefaultPawn>(GetPawn()))
 	{
-		// On foot: look for the car nearest to where the player is aiming on the ground.
 		if (AMultiplayerVehiclePawn* NearestCar = FindCarNearScreenCenter())
 		{
-			// bDead is replicated, so this saves a round trip; the server re-checks it anyway.
 			if (NearestCar->IsDead())
 			{
 				return;
@@ -248,14 +243,13 @@ AMultiplayerVehiclePawn* ACarPlayerController::FindCarNearScreenCenter() const
 
 void ACarPlayerController::ServerEnterVehicle_Implementation(AMultiplayerVehiclePawn* Vehicle)
 {
-	// Only take a living car nobody is driving, and only from on foot, so the pawn we destroy below is always the exit pawn.
+	// Only take a living car nobody is driving, and only from defaultpawn
 	ADefaultPawn* DefaultPawn = Cast<ADefaultPawn>(GetPawn());
 	if (!Vehicle || !DefaultPawn || Vehicle->IsDead() || Vehicle->GetController())
 	{
 		return;
 	}
 
-	// Possess unpossesses the default pawn first.
 	Possess(Vehicle);
 	if (GetPawn() == Vehicle)
 	{
@@ -266,7 +260,6 @@ void ACarPlayerController::ServerEnterVehicle_Implementation(AMultiplayerVehicle
 
 void ACarPlayerController::ServerExitVehicle_Implementation()
 {
-	// Only leave from a vehicle, so pressing the key while on foot doesn't spawn extra pawns.
 	AMultiplayerVehiclePawn* Vehicle = Cast<AMultiplayerVehiclePawn>(GetPawn());
 	UWorld* World = GetWorld();
 	if (!Vehicle || !World || !ExitPawnClass)
@@ -282,7 +275,6 @@ void ACarPlayerController::ServerExitVehicle_Implementation()
 
 	if (APawn* NewPawn = World->SpawnActor<APawn>(ExitPawnClass, PawnSpawnLocation, SpawnRotation, Params))
 	{
-		// Possess unpossesses the vehicle first; the vehicle stays in the world.
 		Possess(NewPawn);
 		SetHealthHUDVisbility(false);
 	}
