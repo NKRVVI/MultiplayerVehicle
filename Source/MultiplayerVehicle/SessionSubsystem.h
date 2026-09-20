@@ -43,6 +43,10 @@ private:
 	void OnFindSessionsComplete(bool bWasSuccessful);
 	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 
+	/** ClientTravel fails asynchronously and silently drops back to the menu, so surface why. */
+	void OnNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
+	void OnTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& ErrorString);
+
 	void ShowMessage(const FString& Message, const FColor& Color = FColor::Yellow) const;
 
 	/** Identifies our sessions among everything else on the same Steam App ID (480 is shared by every developer). */

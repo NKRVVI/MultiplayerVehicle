@@ -27,10 +27,21 @@ void USessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("SessionSubsystem: no online subsystem available"));
 	}
+
+	if (GEngine)
+	{
+		GEngine->OnNetworkFailure().AddUObject(this, &USessionSubsystem::OnNetworkFailure);
+		GEngine->OnTravelFailure().AddUObject(this, &USessionSubsystem::OnTravelFailure);
+	}
 }
 
 void USessionSubsystem::Deinitialize()
 {
+	if (GEngine)
+	{
+		GEngine->OnNetworkFailure().RemoveAll(this);
+		GEngine->OnTravelFailure().RemoveAll(this);
+	}
 	SessionInterface.Reset();
 	SessionSearch.Reset();
 	Super::Deinitialize();
@@ -234,6 +245,16 @@ void USessionSubsystem::TravelToMenu()
 {
 	// Leaving the map is what actually shuts down the listen server (dropping its clients) or disconnects a client.
 	UGameplayStatics::OpenLevel(this, FName(*UGameMapsSettings::GetGameDefaultMap()));
+}
+
+void USessionSubsystem::OnNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString)
+{
+	ShowMessage(FString::Printf(TEXT("Network failure: %s (%s)"), ENetworkFailure::ToString(FailureType), *ErrorString), FColor::Red);
+}
+
+void USessionSubsystem::OnTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& ErrorString)
+{
+	ShowMessage(FString::Printf(TEXT("Travel failure: %s (%s)"), ETravelFailure::ToString(FailureType), *ErrorString), FColor::Red);
 }
 
 void USessionSubsystem::ShowMessage(const FString& Message, const FColor& Color) const
