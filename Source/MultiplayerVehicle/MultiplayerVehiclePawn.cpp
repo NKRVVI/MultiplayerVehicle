@@ -43,6 +43,10 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	// AIController on the server, which counts as "locally controlled" there and blocks players from entering the car.
 	AutoPossessAI = EAutoPossessAI::Disabled;
 
+	// The game mode spawns this class as the default pawn at a PlayerStart. With the default (Undefined) handling the spawn is refused
+	// when the start is taken (another car parked on it), and the joining player is left with no pawn, parked at the start.
+	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
 	CarMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CarMesh"));
 	SetRootComponent(CarMesh);
 
