@@ -64,6 +64,8 @@ private:
 
 	/** Host request that's waiting for an old session to finish being destroyed. */
 	bool bCreateAfterDestroy = false;
+	/** Join request that's waiting for a stale session (e.g. after the host quit) to finish being destroyed. */
+	bool bFindAfterDestroy = false;
 	bool bLeaving = false;
 	int32 PendingMaxPlayers = 4;
 	FString PendingMapName;

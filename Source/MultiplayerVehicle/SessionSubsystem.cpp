@@ -102,6 +102,11 @@ void USessionSubsystem::OnDestroySessionComplete(FName SessionName, bool bWasSuc
 		bCreateAfterDestroy = false;
 		CreateSessionInternal();
 	}
+	else if (bFindAfterDestroy)
+	{
+		bFindAfterDestroy = false;
+		FindAndJoinSession();
+	}
 }
 
 void USessionSubsystem::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
@@ -123,6 +128,22 @@ void USessionSubsystem::FindAndJoinSession()
 	if (!SessionInterface.IsValid())
 	{
 		ShowMessage(TEXT("Join failed: no online subsystem"), FColor::Red);
+		return;
+	}
+
+	// If the host quit on us, the client-side session is still registered and JoinSession would fail with AlreadyInSession.
+	if (SessionInterface->GetNamedSession(NAME_GameSession))
+	{
+		ShowMessage(TEXT("Clearing stale session before searching..."));
+		bFindAfterDestroy = true;
+		DestroyHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
+			FOnDestroySessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnDestroySessionComplete));
+		if (!SessionInterface->DestroySession(NAME_GameSession))
+		{
+			SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroyHandle);
+			bFindAfterDestroy = false;
+			ShowMessage(TEXT("DestroySession failed to start"), FColor::Red);
+		}
 		return;
 	}
 
