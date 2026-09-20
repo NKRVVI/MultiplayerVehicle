@@ -10,7 +10,6 @@
 
 /**
  * Hosts and joins sessions through whichever online subsystem is the default (Steam, or Null for LAN).
- * Lives on the GameInstance so it survives map travel.
  */
 UCLASS()
 class MULTIPLAYERVEHICLE_API USessionSubsystem : public UGameInstanceSubsystem
@@ -21,15 +20,15 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	/** Creates a session and opens MapName as a listen server. Destroys any existing session first. */
+	//Creates a session and opens MapName as a listen server. Destroys any existing session first.
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void HostSession(int32 MaxPlayers = 4, const FString& MapName = TEXT("/Game/CarArena"));
 
-	/** Searches for sessions of this game and joins the first one that has room. */
+	//Searches for sessions of this game and joins the first one that has room.
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void FindAndJoinSession();
 
-	/** Leaves / tears down the current session. */
+	//Leaves / tears down the current session.
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void LeaveSession();
 
@@ -43,13 +42,13 @@ private:
 	void OnFindSessionsComplete(bool bWasSuccessful);
 	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 
-	/** ClientTravel fails asynchronously and silently drops back to the menu, so surface why. */
+	//network debugging functions
 	void OnNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
 	void OnTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& ErrorString);
 
 	void ShowMessage(const FString& Message, const FColor& Color = FColor::Yellow) const;
 
-	/** Identifies our sessions among everything else on the same Steam App ID (480 is shared by every developer). */
+	/*Session tags*/
 	static const FName GameKeyName;
 	static const FString GameKeyValue;
 
@@ -62,9 +61,9 @@ private:
 	FDelegateHandle FindHandle;
 	FDelegateHandle JoinHandle;
 
-	/** Host request that's waiting for an old session to finish being destroyed. */
+	//Host request that's waiting for an old session to finish being destroyed
 	bool bCreateAfterDestroy = false;
-	/** Join request that's waiting for a stale session (e.g. after the host quit) to finish being destroyed. */
+	//Join request that's waiting for a stale session (e.g. after the host quit) to finish being destroyed
 	bool bFindAfterDestroy = false;
 	bool bLeaving = false;
 	int32 PendingMaxPlayers = 4;

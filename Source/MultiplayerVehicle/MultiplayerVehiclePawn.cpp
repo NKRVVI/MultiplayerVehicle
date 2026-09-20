@@ -34,14 +34,14 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	CarMesh->SetCollisionProfileName(TEXT("Vehicle"));
 	CarMesh->SetSimulatePhysics(true);
 	CarMesh->SetGenerateOverlapEvents(true);
-	CarMesh->SetNotifyRigidBodyCollision(true); // "Simulation Generates Hit Events" - required for OnComponentHit
+	CarMesh->SetNotifyRigidBodyCollision(true);
 	CarMesh->BodyInstance.bOverrideMass = true;
 	CarMesh->BodyInstance.SetMassOverride(1500.f);
 
 	VehicleMovementComponent = CreateDefaultSubobject<UChaosWheeledVehicleMovementComponent>(TEXT("VehicleMovementComponent"));
 	VehicleMovementComponent->SetUpdatedComponent(CarMesh);
 	
-	// --- Chase camera, positioned behind the car ---
+	//camera, positioned behind the car
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArm->SetupAttachment(CarMesh);
@@ -67,18 +67,6 @@ AMultiplayerVehiclePawn::AMultiplayerVehiclePawn()
 	OverheadWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("OverheadWidget"));
 	OverheadWidget->SetupAttachment(CarMesh);
 	OverheadWidget->SetVisibility(false);
-
-	// SteerAction, MoveForwardAction, BrakeAction, GearUpAction and GearDownAction are
-	// assigned in the editor (see the header) - nothing to construct here.
-}
-
-void AMultiplayerVehiclePawn::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-	if (IsLocallyControlled())
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Black, TEXT("Current Health is ") + FString::FromInt(Health));
-	}
 }
 
 void AMultiplayerVehiclePawn::BeginPlay()
@@ -88,8 +76,6 @@ void AMultiplayerVehiclePawn::BeginPlay()
 	// Collisions are only detected on the server; clients are told about them via MulticastDrawImpact.
 	if (HasAuthority())
 	{
-		// A skeletal mesh's hit-event flag lives on each physics-asset body, not on the component's BodyInstance,
-		// and those bodies only exist once physics state is created - so this can't be done in the constructor.
 		CarMesh->SetAllBodiesNotifyRigidBodyCollision(true);
 		CarMesh->OnComponentHit.AddDynamic(this, &AMultiplayerVehiclePawn::OnCarHit);
 	}
@@ -120,7 +106,7 @@ void AMultiplayerVehiclePawn::OnRep_Controller()
 {
 	Super::OnRep_Controller();
 	
-	// Driver left: this car is no longer locally controlled, so it goes back to the overhead widget.
+	// driver exits and this car is no longer locally controlled, so it goes back to the overhead widget.
 	UpdateHealthWidget();
 	if (GetController())
 	{
@@ -132,8 +118,7 @@ void AMultiplayerVehiclePawn::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
 
-	// On clients the pawn's PlayerState arrives after BeginPlay (and other clients never get this car's controller),
-	// so the name has to be pushed to the overhead widget when it shows up.
+	// On clients the pawn's PlayerState arrives after BeginPlay so the name has to be updated to the overhead widget when it shows up.
 	UpdateHealthWidget();
 }
 
@@ -147,7 +132,7 @@ void AMultiplayerVehiclePawn::UpdateHealthWidget()
 		return;
 	}
 
-	// A wreck never shows its overhead widget again, even when the driver is kicked out and the car becomes uncontrolled.
+	//dead cars don't have a health bar
 	if (bDead)
 	{
 		OverheadWidget->SetVisibility(false);
@@ -179,21 +164,15 @@ void AMultiplayerVehiclePawn::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 
 void AMultiplayerVehiclePawn::RepNotify_UpdateHealth()
 {
-	// Every client runs this for every pawn it can see: the pawn this machine controls broadcasts to the HUD,
-	// every other pawn pushes its health to the overhead widget.
-	if (IsLocallyControlled())
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString::Printf(TEXT("Health: %.0f"), Health));
-	}
-
+	//updates the widget of every non-authoritative pawn
 	UpdateHealthWidget();
 }
 
 void AMultiplayerVehiclePawn::OnDead()
 {
 	OverheadWidget->SetVisibility(false);
-
-	// The driver is thrown out on death, so no release event will ever arrive to clear the last input they held.
+	
+	VehicleMovementComponent->SetSteeringInput(0.f);
 	VehicleMovementComponent->SetThrottleInput(0.f);
 	VehicleMovementComponent->SetBrakeInput(0.f);
 }
@@ -219,10 +198,8 @@ void AMultiplayerVehiclePawn::DecrementHealth(float Amount)
 void AMultiplayerVehiclePawn::OnCarHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 
-	// Only car-vs-car hits do damage. This event describes the damage *this* car deals; the other car's own
-	// hit event covers the reverse direction, so each car is only ever damaged as the recipient.
+	// Only car-vs-car hits do damage. this function calculates the damage this car does on otheractor
 	AMultiplayerVehiclePawn* Recipient = Cast<AMultiplayerVehiclePawn>(OtherActor);
-	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Emerald, OtherActor->GetName());
 	if (!Recipient)
 	{
 		return;
@@ -235,7 +212,7 @@ void AMultiplayerVehiclePawn::OnCarHit(UPrimitiveComponent* HitComp, AActor* Oth
 		return;
 	}
 
-	// How directly this car is heading at the hit point: 1 = straight at it, 0 = sideways, <0 = moving away.
+	// How directly this car is heading at the hit point
 	const FVector ToHitPoint = (Hit.ImpactPoint - CarMesh->GetCenterOfMass()).GetSafeNormal();
 	const float Alignment = FMath::Abs(FVector::DotProduct(Velocity / Speed, ToHitPoint));
 	if (Alignment <= 0.f)
@@ -243,17 +220,14 @@ void AMultiplayerVehiclePawn::OnCarHit(UPrimitiveComponent* HitComp, AActor* Oth
 		return;
 	}
 
-	// Contact events fire every physics frame while cars scrape or bounce, so only the first hit in the
-	// cooldown window damages the recipient.
+	// Contact events fire every physics frame while cars scrape or bounce, so only the first hit in the cooldown window damages the recipient.
 	const float Now = GetWorld()->GetTimeSeconds();
 	if (Now - Recipient->LastCollisionDamageTime < Recipient->CollisionDamageCooldown)
 	{
 		return;
 	}
 	Recipient->LastCollisionDamageTime = Now;
-
-	GEngine->AddOnScreenDebugMessage(-1, 20.f, FColor::Purple, FString::Printf(TEXT("Hit: %s / bone %s  |  Mine: %s / bone %s"),
-		*GetNameSafe(OtherComp), *Hit.BoneName.ToString(), *GetNameSafe(HitComp), *Hit.MyBoneName.ToString()));
+	
 	const float NormalisedSpeed = FMath::Clamp(Speed / MaxDamageSpeed, 0.f, 1.f);
 	Recipient->DecrementHealth(Alignment * MaxCollisionDamage * NormalisedSpeed);
 	MulticastDrawImpact(Hit.ImpactPoint);
@@ -268,7 +242,7 @@ void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerI
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	// The key-to-action mapping context is added by the player controller (ACarPlayerController);
+	// The key-to-action mapping context is added by the player controller (ACarPlayerController). 
 	// this pawn only binds the actions to its handler functions.
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
@@ -281,7 +255,6 @@ void AMultiplayerVehiclePawn::SetupPlayerInputComponent(UInputComponent* PlayerI
 		EnhancedInputComponent->BindAction(BrakeAction, ETriggerEvent::Started, this, &ThisClass::Brake);
 		EnhancedInputComponent->BindAction(BrakeAction, ETriggerEvent::Completed, this, &ThisClass::ReleaseBrake);
 
-		// Manual gear shifting disabled for now - automatic transmission handles gears.
 		EnhancedInputComponent->BindAction(GearUpAction, ETriggerEvent::Started, this, &ThisClass::GearUp);
 		EnhancedInputComponent->BindAction(GearDownAction, ETriggerEvent::Started, this, &ThisClass::GearDown);
 	}
@@ -306,7 +279,6 @@ void AMultiplayerVehiclePawn::ReleaseAccelerate(const FInputActionValue& Value)
 
 void AMultiplayerVehiclePawn::Brake(const FInputActionValue& Value)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Cyan, TEXT("Brake"));
 	VehicleMovementComponent->SetBrakeInput(HarshBrakeStrength);
 }
 

@@ -14,28 +14,19 @@ class USpringArmComponent;
 class UCameraComponent;
 class UWidgetComponent;
 
-/** Broadcast on the server when a vehicle's health reaches 0. */
+//Broadcast on the server when a vehicle's health reaches 0
 DECLARE_MULTICAST_DELEGATE(FOnVehicleDead);
 
-/** Broadcast on the machine controlling a vehicle whenever its health changes. Parameter is health as 0-1 of MaxHealth. */
+//Broadcast on the machine controlling a vehicle whenever its health changes
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHealthUpdate, float);
 
-/** Broadcast on the machine controlling a vehicle whenever its gear may have changed. Parameter is the vehicle's target gear. */
+//Broadcast on the machine controlling a vehicle whenever its gear may have changed
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnGearChange, int32);
 
 /**
- * Drivable car pawn. The car body is a skeletal mesh (a Skeletal Mesh
- * Component is required for UChaosVehicleMovementComponent to simulate at
- * all - a static mesh chassis silently never creates a physics state)
- * driven by a Chaos wheeled vehicle movement component. No AnimInstance is
- * assigned, so the mesh renders in its bind pose and the wheels don't
- * visually rotate/steer even though the physics wheels are real.
+ * Drivable car pawn.
  *
- * Steering / throttle / brake / reverse / gear-shift input is bound via
- * Enhanced Input. The IA_* actions below are assigned in the editor (e.g. on
- * a Blueprint subclass). The Input Mapping Context that maps keys to them is
- * added by ACarPlayerController (VehicleMappingContext); this class only
- * binds actions to functions.
+ * Steering / throttle / brake / reverse / gear-shift input is bound via Enhanced Input.
  */
 UCLASS()
 class MULTIPLAYERVEHICLE_API AMultiplayerVehiclePawn : public APawn
@@ -45,7 +36,6 @@ class MULTIPLAYERVEHICLE_API AMultiplayerVehiclePawn : public APawn
 public:
 	AMultiplayerVehiclePawn();
 
-	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PossessedBy(AController* NewController) override;
@@ -72,41 +62,31 @@ protected:
 	UFUNCTION()
 	void OnCarHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
-	/** The car body. Root component and sole visual/physical mesh - assign your car mesh here. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USkeletalMeshComponent> CarMesh;
 
-	/** Drives CarMesh: steering, throttle, brake, gears. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UChaosWheeledVehicleMovementComponent> VehicleMovementComponent;
 
-	/** Booms the chase camera out behind the car. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> SpringArm;
 
-	/** Chase camera, positioned behind the car via SpringArm. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> Camera;
 
-	/** Floating widget above the car (assign the widget class on this component in the Blueprint). Shown only on cars this machine does not control. */
+	//overhead health widget component
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|UI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UWidgetComponent> OverheadWidget;
 
-	/**
-	 * Pushes the current health to whichever widget applies. Locally controlled: hides the overhead widget and
-	 * broadcasts OnHealthUpdate for the local controller's HUD. Otherwise: shows the overhead widget (unless
-	 * dead) and updates its health and name. Re-run whenever health or the controller may have changed.
-	 */
+	//if locally controlled update hud widget, otherwise overhead widget
 	void UpdateHealthWidget();
 
-	// The Input Mapping Context holding these actions' key mappings is added by ACarPlayerController.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> SteerAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> AccelerateAction;
 
-	/** Applies the brake directly, regardless of whether the car is currently moving forward or backward. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> BrakeAction;
 
@@ -119,55 +99,52 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle")
 	float HarshBrakeStrength = 0.2f;
 
-	/** Vehicle health. Set on the server only; clients get it via replication and RepNotify_UpdateHealth runs when it arrives. */
 	UPROPERTY(ReplicatedUsing = RepNotify_UpdateHealth, EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Health")
 	float Health = 100.f;
 
-	/** Health value that counts as 100% when reporting health to the overhead widget. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Health")
 	float MaxHealth = 100.f;
 
-	/** True once Health has reached 0. Set on the server only; clients get it via replication and OnDead runs when it arrives. */
 	UPROPERTY(ReplicatedUsing = OnDead, BlueprintReadOnly, Category = "Vehicle|Health")
 	bool bDead = false;
 
-	/** RepNotify for bDead. Only fires on clients - on the server, call it manually after setting bDead. Hides the overhead widget. */
+	//RepNotify for bDead
 	UFUNCTION()
 	void OnDead();
 
-	/** RepNotify for Health. Only fires on clients - on the server, call it manually after changing Health. */
+	//RepNotify for Health
 	UFUNCTION()
 	void RepNotify_UpdateHealth();
 
-	/** Damage dealt to another car by a perfectly head-on hit at MaxDamageSpeed or above. Scaled down by angle and speed. */
+	//maximum possible damage in a single hit
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle|Health")
 	float MaxCollisionDamage = 50.f;
 
-	/** Speed (cm/s) at which a hit does full damage; speed is normalised against this and clamped to 0-1. */
+	//speed at which damage is maximised, not accounting for angle of hit
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle|Health")
 	float MaxDamageSpeed = 2000.f;
 
-	/** Seconds after this car takes collision damage during which further collision damage to it is ignored, so one crash (many contact events) only hurts once. */
+	//Seconds after this car takes collision damage during which further collision damage to it is ignored
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vehicle|Health", meta = (ClampMin = "0.0"))
 	float CollisionDamageCooldown = 0.75f;
 
-	/** Server-only: world time (seconds) of the last collision damage this car took. */
+	// server only : last dime a collision damage was done
 	float LastCollisionDamageTime = -BIG_NUMBER;
 
-	/** Server-only: lowers Health by Amount (clamped at 0) and runs the RepNotify locally, since it doesn't fire on the server. */
+	//Server-only: lowers Health by Amount 
 	void DecrementHealth(float Amount);
 
 public:
-	/** Server-only: fires once when Health drops to 0. The possessing player controller binds to this to kick the driver out. */
+	//Server-only: fires once when Health drops to 0.
 	FOnVehicleDead OnVehicleDead;
 
-	/** Broadcast from UpdateHealthWidget when this pawn is locally controlled. The local player controller binds to this to drive the HUD widget. */
+	//Broadcast from UpdateHealthWidget when this pawn is locally controlled.
 	FOnHealthUpdate OnHealthUpdate;
 
-	/** Broadcast on gear up/down and when the controller changes. The local player controller binds to this to drive the HUD's gear display. */
+	//Broadcast on gear up/down
 	FOnGearChange OnGearChange;
 
-	/** The gear the vehicle is shifting to. Ahead of GetCurrentGear() right after a shift request. */
+	//The gear the vehicle is shifting to
 	int32 GetTargetGear() const;
 
 	FORCEINLINE float GetHealthPercent() const { return Health / MaxHealth; }
